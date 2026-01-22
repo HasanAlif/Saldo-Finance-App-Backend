@@ -106,6 +106,23 @@ const deleteMe = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+// Setup user profile (country, currency, language)
+const setupProfile = catchAsync(async (req: Request, res: Response) => {
+  const { country, currency, language } = req.body;
+  const result = await userService.userProfileSetup(req.user.id, {
+    country,
+    currency,
+    language,
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Profile setup completed successfully!",
+    data: result,
+  });
+});
+
 export const userController = {
   createUser,
   getUsers,
@@ -114,4 +131,5 @@ export const userController = {
   accountUpdate,
   deleteMe,
   profileImageChange,
+  setupProfile,
 };

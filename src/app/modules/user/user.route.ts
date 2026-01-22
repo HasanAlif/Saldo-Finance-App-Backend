@@ -12,7 +12,7 @@ const router = express.Router();
 router.post(
   "/register",
   validateRequest(UserValidation.CreateUserValidationSchema),
-  userController.createUser
+  userController.createUser,
 );
 
 // Update profile image
@@ -20,7 +20,7 @@ router.put(
   "/profile-image",
   auth(),
   fileUploader.uploadSingle,
-  userController.profileImageChange
+  userController.profileImageChange,
 );
 
 // Update profile with optional image
@@ -28,7 +28,7 @@ router.put(
   "/profile",
   auth(),
   fileUploader.uploadSingle,
-  userController.updateProfile
+  userController.updateProfile,
 );
 
 // Update account details
@@ -36,7 +36,15 @@ router.patch(
   "/account",
   auth(),
   validateRequest(UserValidation.UpdateProfileSchema),
-  userController.accountUpdate
+  userController.accountUpdate,
+);
+
+// Setup profile (country, currency, language)
+router.post(
+  "/profile-setup",
+  auth(),
+  validateRequest(UserValidation.UserProfileSetupSchema),
+  userController.setupProfile,
 );
 
 // Delete own account

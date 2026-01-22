@@ -21,19 +21,27 @@ const createUserIntoDb = async (payload: {
   // Check if user already exists
   const existingUser = await User.findOne({ email: payload.email });
   if (existingUser) {
-    throw new ApiError(httpStatus.CONFLICT, "User with this email already exists");
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      "User with this email already exists",
+    );
   }
 
   // Check if mobile number already exists
-  const existingMobile = await User.findOne({ mobileNumber: payload.mobileNumber });
+  const existingMobile = await User.findOne({
+    mobileNumber: payload.mobileNumber,
+  });
   if (existingMobile) {
-    throw new ApiError(httpStatus.CONFLICT, "User with this mobile number already exists");
+    throw new ApiError(
+      httpStatus.CONFLICT,
+      "User with this mobile number already exists",
+    );
   }
 
   // Hash password
   const hashedPassword = await bcrypt.hash(
     payload.password,
-    Number(config.bcrypt_salt_rounds)
+    Number(config.bcrypt_salt_rounds),
   );
 
   // Create user
@@ -52,7 +60,7 @@ const createUserIntoDb = async (payload: {
       role: createdUser.role,
     },
     config.jwt.jwt_secret as string,
-    config.jwt.expires_in as string
+    config.jwt.expires_in as string,
   );
 
   return {
@@ -71,7 +79,7 @@ const createUserIntoDb = async (payload: {
 // Get all users with search and pagination
 const getUsersFromDb = async (
   params: IUserFilterRequest,
-  options: IPaginationOptions
+  options: IPaginationOptions,
 ) => {
   const { page, limit, skip } = paginationHelper.calculatePagination(options);
   const { searchTerm, ...filterData } = params;
@@ -105,7 +113,9 @@ const getUsersFromDb = async (
 
   const [result, total] = await Promise.all([
     User.find(whereConditions)
-      .select("_id fullName email mobileNumber profilePicture role status createdAt")
+      .select(
+        "_id fullName email mobileNumber profilePicture role status createdAt",
+      )
       .sort(sortConditions)
       .skip(skip)
       .limit(limit)
@@ -126,7 +136,10 @@ const updateProfile = async (req: Request) => {
 
   // Handle file upload
   if (req.file) {
-    const uploaded = await fileUploader.uploadToCloudinary(req.file, "profile-images");
+    const uploaded = await fileUploader.uploadToCloudinary(
+      req.file,
+      "profile-images",
+    );
     updateData.profilePicture = uploaded.Location;
   }
 
@@ -134,7 +147,8 @@ const updateProfile = async (req: Request) => {
   if (req.body.data) {
     const parseData = JSON.parse(req.body.data);
     if (parseData.fullName) updateData.fullName = parseData.fullName;
-    if (parseData.mobileNumber) updateData.mobileNumber = parseData.mobileNumber;
+    if (parseData.mobileNumber)
+      updateData.mobileNumber = parseData.mobileNumber;
   }
 
   if (Object.keys(updateData).length === 0) {
@@ -173,12 +187,15 @@ const profileImageChange = async (req: Request) => {
     throw new ApiError(httpStatus.BAD_REQUEST, "No image provided");
   }
 
-  const uploaded = await fileUploader.uploadToCloudinary(req.file, "profile-images");
+  const uploaded = await fileUploader.uploadToCloudinary(
+    req.file,
+    "profile-images",
+  );
 
   const result = await User.findByIdAndUpdate(
     req.user.id,
     { profilePicture: uploaded.Location },
-    { new: true, select: "_id fullName email profilePicture" }
+    { new: true, select: "_id fullName email profilePicture" },
   ).lean();
 
   return result;
@@ -189,7 +206,7 @@ const deleteUserFromDb = async (id: string) => {
   const result = await User.findByIdAndUpdate(
     id,
     { isDeleted: true, status: "INACTIVE" },
-    { new: true, select: "_id fullName email status" }
+    { new: true, select: "_id fullName email status" },
   ).lean();
 
   if (!result) {
@@ -202,7 +219,7 @@ const deleteUserFromDb = async (id: string) => {
 // Account update
 const accountUpdateIntoDb = async (
   payload: Partial<IUser>,
-  id: string
+  id: string,
 ): Promise<Partial<IUser> | null> => {
   const allowedFields = ["fullName", "mobileNumber"];
   const updateData: Record<string, any> = {};
@@ -225,6 +242,30 @@ const accountUpdateIntoDb = async (
   return result;
 };
 
+const userProfileSetup = async (
+  userId: string,
+  payload: { country: string; currency: string; language: string },
+) => {
+  const result = await User.findByIdAndUpdate(
+    userId,
+    {
+      country: payload.country,
+      currency: payload.currency,
+      language: payload.language,
+    },
+    {
+      new: true,
+      select: "_id fullName email country currency language",
+    },
+  ).lean();
+
+  if (!result) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  return result;
+};
+
 export const userService = {
   createUserIntoDb,
   getUsersFromDb,
@@ -233,4 +274,5 @@ export const userService = {
   deleteUserFromDb,
   profileImageChange,
   accountUpdateIntoDb,
+  userProfileSetup,
 };

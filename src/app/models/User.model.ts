@@ -29,6 +29,9 @@ export interface IUser extends Document {
   status: UserStatus;
   isDeleted: boolean;
   fcmToken?: string;
+  country?: string;
+  currency?: string;
+  language?: string;
   resetPasswordOtp?: string;
   resetPasswordOtpExpiry?: Date;
   createdAt: Date;
@@ -79,6 +82,15 @@ const UserSchema = new Schema<IUser>(
     fcmToken: {
       type: String,
     },
+    country: {
+      type: String,
+    },
+    currency: {
+      type: String,
+    },
+    language: {
+      type: String,
+    },
     resetPasswordOtp: {
       type: String,
       select: false,
@@ -90,7 +102,7 @@ const UserSchema = new Schema<IUser>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Indexes for better query performance (email index created by unique: true)
