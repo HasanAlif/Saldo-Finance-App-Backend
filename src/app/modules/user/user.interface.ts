@@ -1,0 +1,22 @@
+import { UserRole, UserStatus } from "../../models";
+
+export interface IUser {
+  id?: string;
+  fullName: string;
+  email: string;
+  mobileNumber: string;
+  password: string;
+  profilePicture?: string;
+  role: UserRole;
+  status: UserStatus;
+  isDeleted: boolean;
+  fcmToken?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export type IUserFilterRequest = {
+  email?: string;
+  mobileNumber?: string;
+  searchTerm?: string;
+};
