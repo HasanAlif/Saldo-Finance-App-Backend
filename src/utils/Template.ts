@@ -297,3 +297,116 @@ export const LANDING_PAGE_TEMPLATE = `
 </body>
 </html>
 `;
+
+export const PASSWORD_RESET_TEMPLATE = (otp: string) => `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reset Password OTP</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background-color: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .header {
+      background-color: #0a0a0a;
+      padding: 30px;
+      text-align: center;
+      border-bottom: 3px solid #d4af37;
+    }
+    .logo-text {
+      color: #f0f0f0;
+      margin: 0;
+      font-size: 28px;
+      font-weight: bold;
+    }
+    .accent {
+      color: #d4af37;
+    }
+    .content {
+      padding: 40px;
+      color: #333333;
+      line-height: 1.6;
+    }
+    .otp-wrapper {
+        text-align: center;
+        margin: 30px 0;
+    }
+    .otp-box {
+      display: inline-block;
+      background-color: #f8f9fa;
+      border: 2px dashed #d4af37;
+      border-radius: 8px;
+      font-size: 36px;
+      font-weight: bold;
+      letter-spacing: 8px;
+      color: #0a0a0a;
+      padding: 15px 40px;
+    }
+    .warning-text {
+        font-size: 14px;
+        color: #666;
+        margin-top: 10px;
+    }
+    .footer {
+      background-color: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      font-size: 12px;
+      color: #888888;
+      border-top: 1px solid #eeeeee;
+    }
+    .social-links {
+        margin-top: 10px;
+    }
+    .social-links a {
+        color: #d4af37;
+        text-decoration: none;
+        margin: 0 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="logo-text">Saldo <span class="accent">App</span></h1>
+    </div>
+    <div class="content">
+      <h2 style="margin-top: 0; color: #0a0a0a;">Password Reset Request</h2>
+      <p>Hello,</p>
+      <p>We received a request to reset the password for your Saldo account. To proceed, please use the One-Time Password (OTP) below.</p>
+      
+      <div class="otp-wrapper">
+        <div class="otp-box">${otp}</div>
+      </div>
+      
+      <p style="text-align: center;">This OTP is valid for <strong>15 minutes</strong>.</p>
+      
+      <div style="border-top: 1px solid #eee; margin-top: 30px; padding-top: 20px;">
+        <p style="font-size: 14px; color: #666;">If you didn't request a password reset, please ignore this email or contact support if you have concerned.</p>
+      </div>
+      
+      <p>Best regards,<br>The Saldo Team</p>
+    </div>
+    <div class="footer">
+      <p>&copy; ${new Date().getFullYear()} Saldo Finance App. All rights reserved.</p>
+      <div class="social-links">
+        <a href="#">Privacy Policy</a> | <a href="#">Terms of Service</a> | <a href="#">Help Center</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+`;
