@@ -17,6 +17,7 @@ const createUserIntoDb = async (payload: {
   email: string;
   mobileNumber: string;
   password: string;
+  fcmToken?: string;
 }) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email: payload.email });
@@ -50,6 +51,7 @@ const createUserIntoDb = async (payload: {
     email: payload.email,
     mobileNumber: payload.mobileNumber,
     password: hashedPassword,
+    fcmToken: payload.fcmToken,
   });
 
   // Generate token

@@ -25,4 +25,12 @@ export default {
 
   site_name: process.env.WEBSITE_NAME,
   contact_mail: process.env.CONTACT_MAIL,
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackUrl:
+      process.env.GOOGLE_CALLBACK_URL ||
+      "http://localhost:5000/api/auth/google/callback",
+  },
+  frontendUrl: process.env.FRONTEND_URL || "http://localhost:3000",
 };

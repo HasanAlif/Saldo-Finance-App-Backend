@@ -18,13 +18,20 @@ export enum NotificationType {
   SYSTEM = "SYSTEM",
 }
 
+export enum AuthProvider {
+  LOCAL = "LOCAL",
+  GOOGLE = "GOOGLE",
+}
+
 export interface IUser extends Document {
   _id: string;
   fullName: string;
   email: string;
-  mobileNumber: string;
-  password: string;
+  mobileNumber?: string;
+  password?: string;
   profilePicture?: string;
+  googleId?: string;
+  authProvider: AuthProvider;
   role: UserRole;
   status: UserStatus;
   isDeleted: boolean;
@@ -54,16 +61,24 @@ const UserSchema = new Schema<IUser>(
     },
     mobileNumber: {
       type: String,
-      required: true,
       trim: true,
     },
     password: {
       type: String,
-      required: true,
       select: false,
     },
     profilePicture: {
       type: String,
+    },
+    googleId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
+    authProvider: {
+      type: String,
+      enum: Object.values(AuthProvider),
+      default: AuthProvider.LOCAL,
     },
     role: {
       type: String,
