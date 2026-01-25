@@ -217,6 +217,61 @@ const addSpendingToAccount = async (
   }
 };
 
+const getIncomeSpendingByDate = async (userId: string, date: string) => {
+  // Parse the date string
+  const targetDate = new Date(date);
+
+  if (isNaN(targetDate.getTime())) {
+    throw new ApiError(httpStatus.BAD_REQUEST, "Invalid date format");
+  }
+
+  // Create start and end of the day
+  const startDate = new Date(targetDate.setHours(0, 0, 0, 0));
+  const endDate = new Date(targetDate.setHours(23, 59, 59, 999));
+
+  // Calculate total income for the date
+  const incomeResult = await Income.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        date: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalIncome: { $sum: "$amount" },
+      },
+    },
+  ]);
+
+  // Calculate total spending for the date
+  const spendingResult = await Spending.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        date: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalSpending: { $sum: "$amount" },
+      },
+    },
+  ]);
+
+  const totalIncome = incomeResult.length > 0 ? incomeResult[0].totalIncome : 0;
+  const totalSpending =
+    spendingResult.length > 0 ? spendingResult[0].totalSpending : 0;
+
+  return {
+    date: startDate.toISOString().split("T")[0],
+    totalIncome,
+    totalSpending,
+  };
+};
+
 export const balanceService = {
   createAccount,
   getTotalAccount,
@@ -224,4 +279,5 @@ export const balanceService = {
   deleteAccount,
   addIncomeToAccount,
   addSpendingToAccount,
+  getIncomeSpendingByDate,
 };

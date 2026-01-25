@@ -86,6 +86,33 @@ const addSpendingToAccount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getIncomeSpendingByDate = catchAsync(
+  async (req: Request, res: Response) => {
+    const { date } = req.query;
+
+    if (!date || typeof date !== "string") {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: "Date query parameter is required",
+        data: null,
+      });
+    }
+
+    const result = await balanceService.getIncomeSpendingByDate(
+      req.user.id,
+      date,
+    );
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Daily income and spending retrieved successfully!",
+      data: result,
+    });
+  },
+);
+
 export const balanceController = {
   createAccount,
   getTotalAccount,
@@ -93,4 +120,5 @@ export const balanceController = {
   deleteAccount,
   addIncomeToAccount,
   addSpendingToAccount,
+  getIncomeSpendingByDate,
 };
