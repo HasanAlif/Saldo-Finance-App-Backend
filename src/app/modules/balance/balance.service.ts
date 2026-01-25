@@ -5,6 +5,7 @@ import { paginationHelper } from "../../../helpars/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
 import { Balance, IBalance } from "./balance.model";
 import { Income, IIncome } from "./income.model";
+import { Spending, ISpending } from "./spending.model";
 
 // Create a new Account Balance
 const createAccount = async (
@@ -133,7 +134,80 @@ const addIncomeToAccount = async (
 
     return {
       income: income[0],
-      account: updatedAccount,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
+const addSpendingToAccount = async (
+  userId: string,
+  accountId: string,
+  payload: {
+    name: string;
+    category: string;
+    amount: number;
+    currency: string;
+    date: Date;
+    time: string;
+  },
+) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Verify account exists and belongs to user
+    const account = await Balance.findOne({
+      _id: accountId,
+      userId,
+    }).session(session);
+
+    if (!account) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Account not found");
+    }
+
+    // Check if account has sufficient balance
+    if (account.amount < payload.amount) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Insufficient balance in account",
+      );
+    }
+
+    // Create spending record
+    const spending = await Spending.create(
+      [
+        {
+          userId,
+          accountId,
+          name: payload.name,
+          category: payload.category,
+          amount: payload.amount,
+          currency: payload.currency,
+          date: payload.date,
+          time: payload.time,
+        },
+      ],
+      { session },
+    );
+
+    // Update account balance (decrease)
+    const updatedAccount = await Balance.findByIdAndUpdate(
+      accountId,
+      {
+        $inc: { amount: -payload.amount },
+        lastUpdated: new Date(),
+      },
+      { new: true, session },
+    ).lean();
+
+    await session.commitTransaction();
+
+    return {
+      spending: spending[0],
     };
   } catch (error) {
     await session.abortTransaction();
@@ -149,4 +223,5 @@ export const balanceService = {
   updateAccount,
   deleteAccount,
   addIncomeToAccount,
+  addSpendingToAccount,
 };

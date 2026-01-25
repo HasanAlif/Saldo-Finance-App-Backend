@@ -33,4 +33,12 @@ router.post(
   balanceController.addIncomeToAccount,
 );
 
+// Add spending to account
+router.post(
+  "/spending",
+  auth(),
+  validateRequest(AccountValidation.AddSpendingSchema),
+  balanceController.addSpendingToAccount,
+);
+
 export const BalanceRoutes = router;

@@ -70,10 +70,27 @@ const addIncomeToAccount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const addSpendingToAccount = catchAsync(async (req: Request, res: Response) => {
+  const { accountId, ...spendingData } = req.body;
+  const result = await balanceService.addSpendingToAccount(
+    req.user.id,
+    accountId,
+    spendingData,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Spending added successfully!",
+    data: result,
+  });
+});
+
 export const balanceController = {
   createAccount,
   getTotalAccount,
   updateAccount,
   deleteAccount,
   addIncomeToAccount,
+  addSpendingToAccount,
 };
