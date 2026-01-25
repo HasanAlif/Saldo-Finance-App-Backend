@@ -4,6 +4,7 @@ import ApiError from "../../../errors/ApiErrors";
 import { paginationHelper } from "../../../helpars/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
 import { Balance, IBalance } from "./balance.model";
+import { Income, IIncome } from "./income.model";
 
 // Create a new Account Balance
 const createAccount = async (
@@ -73,9 +74,79 @@ const deleteAccount = async (accountId: string, userId: string) => {
   return result;
 };
 
+const addIncomeToAccount = async (
+  userId: string,
+  accountId: string,
+  payload: {
+    name: string;
+    category: string;
+    amount: number;
+    currency: string;
+    date: Date;
+    time: string;
+    fillForAllYear: boolean;
+  },
+) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Verify account exists and belongs to user
+    const account = await Balance.findOne({
+      _id: accountId,
+      userId,
+    }).session(session);
+
+    if (!account) {
+      throw new ApiError(httpStatus.NOT_FOUND, "Account not found");
+    }
+
+    // Create income record
+    const income = await Income.create(
+      [
+        {
+          userId,
+          accountId,
+          name: payload.name,
+          category: payload.category,
+          amount: payload.amount,
+          currency: payload.currency,
+          date: payload.date,
+          time: payload.time,
+          fillForAllYear: payload.fillForAllYear,
+        },
+      ],
+      { session },
+    );
+
+    // Update account balance
+    const updatedAccount = await Balance.findByIdAndUpdate(
+      accountId,
+      {
+        $inc: { amount: payload.amount },
+        lastUpdated: new Date(),
+      },
+      { new: true, session },
+    ).lean();
+
+    await session.commitTransaction();
+
+    return {
+      income: income[0],
+      account: updatedAccount,
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+};
+
 export const balanceService = {
   createAccount,
   getTotalAccount,
   updateAccount,
   deleteAccount,
+  addIncomeToAccount,
 };

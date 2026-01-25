@@ -25,4 +25,12 @@ router.put(
 
 router.delete("/:accountId", auth(), balanceController.deleteAccount);
 
+// Add income to account
+router.post(
+  "/income",
+  auth(),
+  validateRequest(AccountValidation.AddIncomeSchema),
+  balanceController.addIncomeToAccount,
+);
+
 export const BalanceRoutes = router;

@@ -54,9 +54,26 @@ const deleteAccount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const addIncomeToAccount = catchAsync(async (req: Request, res: Response) => {
+  const { accountId, ...incomeData } = req.body;
+  const result = await balanceService.addIncomeToAccount(
+    req.user.id,
+    accountId,
+    incomeData,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.CREATED,
+    success: true,
+    message: "Income added successfully!",
+    data: result,
+  });
+});
+
 export const balanceController = {
   createAccount,
   getTotalAccount,
   updateAccount,
   deleteAccount,
+  addIncomeToAccount,
 };
