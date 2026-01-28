@@ -19,8 +19,12 @@ export default {
   },
   reset_pass_link: process.env.RESET_PASS_LINK,
   emailSender: {
-    email: process.env.EMAIL,
-    app_pass: process.env.APP_PASS,
+    host: process.env.MAIL_HOST,
+    port: Number(process.env.MAIL_PORT),
+    secure: process.env.MAIL_SECURE,
+    user: process.env.MAIL_USER,
+    mail: process.env.MAIL_EMAIL,
+    pass: process.env.MAIL_APP_PASS,
   },
 
   site_name: process.env.WEBSITE_NAME,

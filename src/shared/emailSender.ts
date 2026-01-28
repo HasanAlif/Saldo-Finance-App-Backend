@@ -1,32 +1,27 @@
-import nodemailer from "nodemailer";
+import nodemailer, { SendMailOptions, TransportOptions } from "nodemailer";
 import config from "../config";
 
-const emailSender = async (
-  to: string,
-  html: string,
-  subject: string
-): Promise<void> => {
-  if (!config.emailSender.email || !config.emailSender.app_pass) {
-    console.warn("Email credentials not configured. Email not sent.");
-    return;
-  }
+const emailSender = async (email: string, html: string, subject: string) => {
+  if (!config.emailSender.host) return;
 
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    host: config.emailSender.host,
+    port: config.emailSender.port,
+    secure: config.emailSender.secure,
     auth: {
-      user: config.emailSender.email,
-      pass: config.emailSender.app_pass,
+      user: config.emailSender.mail,
+      pass: config.emailSender.pass,
     },
-  });
+  } as TransportOptions);
 
-  await transporter.sendMail({
-    from: `"${config.site_name || "Saldo"}" <${config.emailSender.email}>`,
-    to,
-    subject,
+  const mailOptions: SendMailOptions = {
+    from: config.emailSender.user,
+    to: email,
+    subject: subject,
     html,
-  });
+  };
+
+  const info = await transporter.sendMail(mailOptions);
 };
 
 export default emailSender;
