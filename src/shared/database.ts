@@ -1,13 +1,19 @@
 import mongoose from "mongoose";
+import dns from "dns";
 import config from "../config";
 import { User, UserRole } from "../app/models";
 import bcrypt from "bcrypt";
 
+// Force Node.js to use IPv4 first and set Google DNS
+dns.setDefaultResultOrder("ipv4first");
+dns.setServers(["8.8.8.8", "8.8.4.4"]);
+
 async function connectMongoDB() {
   try {
     await mongoose.connect(config.database_url as string, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 30000,
       heartbeatFrequencyMS: 2000,
+      family: 4, // Force IPv4
     });
     console.log("MongoDB connected successfully!");
 
