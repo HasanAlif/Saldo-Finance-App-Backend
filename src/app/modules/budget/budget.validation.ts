@@ -16,7 +16,16 @@ const updateSchema = z.object({
   status: z.enum(["WEEKLY", "MONTHLY"]).optional(),
 });
 
+const setMonthStartDateSchema = z.object({
+  monthStartDate: z
+    .number()
+    .int("Must be a whole number")
+    .min(1, "Start date must be at least 1")
+    .max(28, "Start date must be at most 28"),
+});
+
 export const budgetValidation = {
   createSchema,
   updateSchema,
+  setMonthStartDateSchema,
 };

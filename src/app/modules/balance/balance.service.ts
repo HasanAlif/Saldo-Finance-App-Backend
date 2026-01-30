@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import ApiError from "../../../errors/ApiErrors";
 import { paginationHelper } from "../../../helpars/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
+import { User } from "../../models/User.model";
 import { Balance, IBalance } from "./balance.model";
 import { Income, IIncome } from "./income.model";
 import { Spending, ISpending } from "./spending.model";
@@ -276,6 +277,10 @@ const getIncomeSpendingByDate = async (userId: string, date: string) => {
 
 // Get monthly income and spending summary
 const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
+  // Get user's custom month start date
+  const user = await User.findById(userId).select("monthStartDate").lean();
+  const monthStartDate = user?.monthStartDate || 1;
+
   let startDate: Date;
   let endDate: Date;
 
@@ -290,25 +295,55 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
       );
     }
 
-    // First day of the specified month
-    startDate = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
-    // Last day of the specified month
-    endDate = new Date(year, monthNum, 0, 23, 59, 59, 999);
+    // Use custom start date for specified month
+    startDate = new Date(year, monthNum - 1, monthStartDate, 0, 0, 0, 0);
+    endDate = new Date(year, monthNum, monthStartDate - 1, 23, 59, 59, 999);
   } else {
-    // Use current month
+    // Use current cycle based on user's custom start date
     const now = new Date();
-    // First day of current month
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    // Last day of current month
-    endDate = new Date(
-      now.getFullYear(),
-      now.getMonth() + 1,
-      0,
-      23,
-      59,
-      59,
-      999,
-    );
+    const currentDay = now.getDate();
+
+    if (currentDay >= monthStartDate) {
+      // Current cycle: starts this month
+      startDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        monthStartDate,
+        0,
+        0,
+        0,
+        0,
+      );
+      endDate = new Date(
+        now.getFullYear(),
+        now.getMonth() + 1,
+        monthStartDate - 1,
+        23,
+        59,
+        59,
+        999,
+      );
+    } else {
+      // Current cycle: started last month
+      startDate = new Date(
+        now.getFullYear(),
+        now.getMonth() - 1,
+        monthStartDate,
+        0,
+        0,
+        0,
+        0,
+      );
+      endDate = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        monthStartDate - 1,
+        23,
+        59,
+        59,
+        999,
+      );
+    }
   }
 
   // Calculate total income for the month

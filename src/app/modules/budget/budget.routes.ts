@@ -7,6 +7,13 @@ import { budgetValidation } from "./budget.validation";
 const router = express.Router();
 
 router.post(
+  "/set-start-date",
+  auth(),
+  validateRequest(budgetValidation.setMonthStartDateSchema),
+  budgetController.setMonthStartDate,
+);
+
+router.post(
   "/",
   auth(),
   validateRequest(budgetValidation.createSchema),

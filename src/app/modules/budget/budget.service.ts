@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Budget, IBudget, BudgetStatus } from "./budget.model";
 import { Spending } from "../balance/spending.model";
+import { User } from "../../models/User.model";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
 
@@ -11,36 +12,91 @@ interface CreateBudgetPayload {
   status: BudgetStatus;
 }
 
-// Helper: Get date range for WEEKLY (Sunday to Saturday)
-const getWeekDateRange = (): { startDate: Date; endDate: Date } => {
+// Helper: Get custom month date range based on user's start date
+const getCustomMonthDateRange = (
+  monthStartDate: number = 1,
+): { startDate: Date; endDate: Date } => {
   const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sunday
+  const currentDay = now.getDate();
 
-  const startDate = new Date(now);
-  startDate.setDate(now.getDate() - dayOfWeek);
-  startDate.setHours(0, 0, 0, 0);
+  let startDate: Date;
+  let endDate: Date;
 
-  const endDate = new Date(startDate);
-  endDate.setDate(startDate.getDate() + 6);
-  endDate.setHours(23, 59, 59, 999);
+  if (currentDay >= monthStartDate) {
+    // Current cycle: starts this month
+    startDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      monthStartDate,
+      0,
+      0,
+      0,
+      0,
+    );
+    endDate = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      monthStartDate - 1,
+      23,
+      59,
+      59,
+      999,
+    );
+  } else {
+    // Current cycle: started last month
+    startDate = new Date(
+      now.getFullYear(),
+      now.getMonth() - 1,
+      monthStartDate,
+      0,
+      0,
+      0,
+      0,
+    );
+    endDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      monthStartDate - 1,
+      23,
+      59,
+      59,
+      999,
+    );
+  }
 
   return { startDate, endDate };
 };
 
-// Helper: Get date range for MONTHLY (1st to last day of current month)
-const getMonthDateRange = (): { startDate: Date; endDate: Date } => {
+// Helper: Get custom week date range (7-day periods from cycle start)
+const getCustomWeekDateRange = (
+  monthStartDate: number = 1,
+): { startDate: Date; endDate: Date } => {
+  const { startDate: cycleStart, endDate: cycleEnd } =
+    getCustomMonthDateRange(monthStartDate);
   const now = new Date();
 
-  const startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-  const endDate = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
-    0,
-    23,
-    59,
-    59,
-    999,
+  // Calculate days since cycle start
+  const daysSinceCycleStart = Math.floor(
+    (now.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24),
   );
+
+  // Which week are we in? (0-indexed)
+  const weekNumber = Math.max(0, Math.floor(daysSinceCycleStart / 7));
+
+  // Week start
+  const startDate = new Date(cycleStart);
+  startDate.setDate(cycleStart.getDate() + weekNumber * 7);
+  startDate.setHours(0, 0, 0, 0);
+
+  // Week end (6 days after start, but not beyond cycle end)
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
+  endDate.setHours(23, 59, 59, 999);
+
+  // Don't exceed cycle end
+  if (endDate > cycleEnd) {
+    endDate.setTime(cycleEnd.getTime());
+  }
 
   return { startDate, endDate };
 };
@@ -55,6 +111,21 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
   const start = startDate.toLocaleDateString("en-GB", options);
   const end = endDate.toLocaleDateString("en-GB", options);
   return `${start} - ${end}`;
+};
+
+// Set user's custom month start date
+const setMonthStartDate = async (userId: string, monthStartDate: number) => {
+  const result = await User.findByIdAndUpdate(
+    userId,
+    { monthStartDate },
+    { new: true, select: "monthStartDate" },
+  ).lean();
+
+  if (!result) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  return { monthStartDate: result.monthStartDate };
 };
 
 const createBudget = async (
@@ -87,14 +158,22 @@ const createBudget = async (
 };
 
 const getBudget = async (userId: string, status: BudgetStatus) => {
+  // Get user's custom month start date
+  const user = await User.findById(userId).select("monthStartDate").lean();
+  const monthStartDate = user?.monthStartDate || 1;
+
+  // Get date range based on status and user's custom start date
+  const { startDate, endDate } =
+    status === "WEEKLY"
+      ? getCustomWeekDateRange(monthStartDate)
+      : getCustomMonthDateRange(monthStartDate);
+
   // Get budgets for user
   const budgets = await Budget.find({ userId, status })
     .select("category budgetValue currency")
     .lean();
 
   if (budgets.length === 0) {
-    const { startDate, endDate } =
-      status === "WEEKLY" ? getWeekDateRange() : getMonthDateRange();
     return {
       status,
       dateRange: formatDateRange(startDate, endDate),
@@ -105,10 +184,6 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
       budgets: [],
     };
   }
-
-  // Get date range based on status
-  const { startDate, endDate } =
-    status === "WEEKLY" ? getWeekDateRange() : getMonthDateRange();
 
   // Get all unique categories (lowercase for matching)
   const categoryMap = new Map<string, { original: string; currency: string }>();
@@ -224,4 +299,5 @@ export const budgetService = {
   getBudget,
   updateBudget,
   deleteBudget,
+  setMonthStartDate,
 };

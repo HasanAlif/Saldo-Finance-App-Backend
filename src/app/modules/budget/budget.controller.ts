@@ -69,9 +69,25 @@ const deleteBudget = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const setMonthStartDate = catchAsync(async (req: Request, res: Response) => {
+  const { monthStartDate } = req.body;
+  const result = await budgetService.setMonthStartDate(
+    req.user.id,
+    monthStartDate,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Month start date updated successfully!",
+    data: result,
+  });
+});
+
 export const budgetController = {
   createBudget,
   getBudget,
   updateBudget,
   deleteBudget,
+  setMonthStartDate,
 };

@@ -39,6 +39,7 @@ export interface IUser extends Document {
   country?: string;
   currency?: string;
   language?: string;
+  monthStartDate?: number;
   resetPasswordOtp?: string;
   resetPasswordOtpExpiry?: Date;
   createdAt: Date;
@@ -105,6 +106,12 @@ const UserSchema = new Schema<IUser>(
     },
     language: {
       type: String,
+    },
+    monthStartDate: {
+      type: Number,
+      min: 1,
+      max: 28,
+      default: 1,
     },
     resetPasswordOtp: {
       type: String,
