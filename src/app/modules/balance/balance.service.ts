@@ -226,8 +226,10 @@ const getIncomeSpendingByDate = async (userId: string, date: string) => {
   }
 
   // Create start and end of the day
-  const startDate = new Date(targetDate.setHours(0, 0, 0, 0));
-  const endDate = new Date(targetDate.setHours(23, 59, 59, 999));
+  const startDate = new Date(targetDate);
+  startDate.setHours(0, 0, 0, 0);
+  const endDate = new Date(targetDate);
+  endDate.setHours(23, 59, 59, 999);
 
   // Calculate total income for the date
   const incomeResult = await Income.aggregate([
@@ -272,6 +274,85 @@ const getIncomeSpendingByDate = async (userId: string, date: string) => {
   };
 };
 
+// Get monthly income and spending summary
+const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
+  let startDate: Date;
+  let endDate: Date;
+
+  if (month) {
+    // Parse month in format "YYYY-MM" (e.g., "2026-01")
+    const [year, monthNum] = month.split("-").map(Number);
+
+    if (!year || !monthNum || monthNum < 1 || monthNum > 12) {
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "Invalid month format. Use YYYY-MM (e.g., 2026-01)",
+      );
+    }
+
+    // First day of the specified month
+    startDate = new Date(year, monthNum - 1, 1, 0, 0, 0, 0);
+    // Last day of the specified month
+    endDate = new Date(year, monthNum, 0, 23, 59, 59, 999);
+  } else {
+    // Use current month
+    const now = new Date();
+    // First day of current month
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    // Last day of current month
+    endDate = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+  }
+
+  // Calculate total income for the month
+  const incomeResult = await Income.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        date: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalIncome: { $sum: "$amount" },
+      },
+    },
+  ]);
+
+  // Calculate total spending for the month
+  const spendingResult = await Spending.aggregate([
+    {
+      $match: {
+        userId: new mongoose.Types.ObjectId(userId),
+        date: { $gte: startDate, $lte: endDate },
+      },
+    },
+    {
+      $group: {
+        _id: null,
+        totalSpending: { $sum: "$amount" },
+      },
+    },
+  ]);
+
+  const totalIncome = incomeResult.length > 0 ? incomeResult[0].totalIncome : 0;
+  const totalSpending =
+    spendingResult.length > 0 ? spendingResult[0].totalSpending : 0;
+
+  return {
+    totalIncome,
+    totalSpending,
+  };
+};
+
 export const balanceService = {
   createAccount,
   getTotalAccount,
@@ -280,4 +361,5 @@ export const balanceService = {
   addIncomeToAccount,
   addSpendingToAccount,
   getIncomeSpendingByDate,
+  getIncomeSpendingByMonth,
 };

@@ -113,6 +113,25 @@ const getIncomeSpendingByDate = catchAsync(
   },
 );
 
+const getIncomeSpendingByMonth = catchAsync(
+  async (req: Request, res: Response) => {
+    const { month } = req.query;
+
+    // month is optional - if not provided, returns current month summary
+    const result = await balanceService.getIncomeSpendingByMonth(
+      req.user.id,
+      month as string | undefined,
+    );
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Monthly income and spending retrieved successfully!",
+      data: result,
+    });
+  },
+);
+
 export const balanceController = {
   createAccount,
   getTotalAccount,
@@ -121,4 +140,5 @@ export const balanceController = {
   addIncomeToAccount,
   addSpendingToAccount,
   getIncomeSpendingByDate,
+  getIncomeSpendingByMonth,
 };

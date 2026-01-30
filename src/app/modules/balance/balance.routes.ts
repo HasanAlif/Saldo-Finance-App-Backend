@@ -44,4 +44,11 @@ router.post(
 // Get daily income and spending summary
 router.get("/daily-summary", auth(), balanceController.getIncomeSpendingByDate);
 
+// Get monthly income and spending summary
+router.get(
+  "/monthly-summary",
+  auth(),
+  balanceController.getIncomeSpendingByMonth,
+);
+
 export const BalanceRoutes = router;
