@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import * as bcrypt from "bcrypt";
 import { v2 as cloudinary } from "cloudinary";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
@@ -90,7 +91,40 @@ const updateProfile = async (
   return result;
 };
 
+const changePassword = async (
+  userId: string,
+  oldPassword: string,
+  newPassword: string,
+) => {
+  const user = await User.findById(userId).select("+password").lean();
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  // Check if user has a password (Google users might not)
+  if (!user.password) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "Cannot change password for Google sign-in accounts",
+    );
+  }
+
+  // Verify old password
+  const isMatch = await bcrypt.compare(oldPassword, user.password);
+  if (!isMatch) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "Old password is incorrect");
+  }
+
+  // Hash new password and update
+  const hashedPassword = await bcrypt.hash(newPassword, 12);
+  await User.findByIdAndUpdate(userId, { password: hashedPassword });
+
+  return { message: "Password changed successfully" };
+};
+
 export const profileService = {
   getProfile,
   updateProfile,
+  changePassword,
 };
