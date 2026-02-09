@@ -6,6 +6,7 @@ import { notificationsRoute } from "../modules/notification/notification.routes"
 import { userRoutes } from "../modules/user/user.route";
 import { profileRoutes } from "../modules/profile/profile.routes";
 import { goalsRoutes } from "../modules/goals/goals.routes";
+import { borrowedRoutes } from "../modules/borrowed/borrowed.routes";
 
 const router = express.Router();
 
@@ -37,6 +38,10 @@ const moduleRoutes = [
   {
     path: "/goals",
     route: goalsRoutes,
+  },
+  {
+    path: "/borrowed",
+    route: borrowedRoutes,
   },
 ];
 
