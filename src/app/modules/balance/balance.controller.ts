@@ -132,6 +132,17 @@ const getIncomeSpendingByMonth = catchAsync(
   },
 );
 
+const getCurrentBalance = catchAsync(async (req: Request, res: Response) => {
+  const result = await balanceService.getCurrentBalance(req.user.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Current balance retrieved successfully!",
+    data: result,
+  });
+});
+
 export const balanceController = {
   createAccount,
   getTotalAccount,
@@ -141,4 +152,5 @@ export const balanceController = {
   addSpendingToAccount,
   getIncomeSpendingByDate,
   getIncomeSpendingByMonth,
+  getCurrentBalance,
 };

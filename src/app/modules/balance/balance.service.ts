@@ -388,6 +388,21 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
   };
 };
 
+const getCurrentBalance = async (userId: string) => {
+  const accounts = await Balance.find({
+    userId,
+  })
+    .select("amount")
+    .lean();
+
+  const totalBalance = accounts.reduce(
+    (sum, account) => sum + account.amount,
+    0,
+  );
+
+  return totalBalance;
+};
+
 export const balanceService = {
   createAccount,
   getTotalAccount,
@@ -397,4 +412,5 @@ export const balanceService = {
   addSpendingToAccount,
   getIncomeSpendingByDate,
   getIncomeSpendingByMonth,
+  getCurrentBalance,
 };

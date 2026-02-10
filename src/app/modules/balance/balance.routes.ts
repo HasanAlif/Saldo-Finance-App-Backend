@@ -51,4 +51,6 @@ router.get(
   balanceController.getIncomeSpendingByMonth,
 );
 
+router.get("/current-balance", auth(), balanceController.getCurrentBalance);
+
 export const BalanceRoutes = router;
