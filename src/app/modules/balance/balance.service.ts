@@ -226,11 +226,29 @@ const getIncomeSpendingByDate = async (userId: string, date: string) => {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid date format");
   }
 
-  // Create start and end of the day
-  const startDate = new Date(targetDate);
-  startDate.setHours(0, 0, 0, 0);
-  const endDate = new Date(targetDate);
-  endDate.setHours(23, 59, 59, 999);
+  // Create start and end of the day in UTC
+  const startDate = new Date(
+    Date.UTC(
+      targetDate.getUTCFullYear(),
+      targetDate.getUTCMonth(),
+      targetDate.getUTCDate(),
+      0,
+      0,
+      0,
+      0,
+    ),
+  );
+  const endDate = new Date(
+    Date.UTC(
+      targetDate.getUTCFullYear(),
+      targetDate.getUTCMonth(),
+      targetDate.getUTCDate(),
+      23,
+      59,
+      59,
+      999,
+    ),
+  );
 
   // Calculate total income for the date
   const incomeResult = await Income.aggregate([
@@ -295,53 +313,65 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
       );
     }
 
-    // Use custom start date for specified month
-    startDate = new Date(year, monthNum - 1, monthStartDate, 0, 0, 0, 0);
-    endDate = new Date(year, monthNum, monthStartDate - 1, 23, 59, 59, 999);
+    // Use custom start date for specified month (UTC)
+    startDate = new Date(
+      Date.UTC(year, monthNum - 1, monthStartDate, 0, 0, 0, 0),
+    );
+    endDate = new Date(
+      Date.UTC(year, monthNum, monthStartDate - 1, 23, 59, 59, 999),
+    );
   } else {
-    // Use current cycle based on user's custom start date
+    // Use current cycle based on user's custom start date (UTC)
     const now = new Date();
-    const currentDay = now.getDate();
+    const currentDay = now.getUTCDate();
 
     if (currentDay >= monthStartDate) {
       // Current cycle: starts this month
       startDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        monthStartDate,
-        0,
-        0,
-        0,
-        0,
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          monthStartDate,
+          0,
+          0,
+          0,
+          0,
+        ),
       );
       endDate = new Date(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        monthStartDate - 1,
-        23,
-        59,
-        59,
-        999,
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth() + 1,
+          monthStartDate - 1,
+          23,
+          59,
+          59,
+          999,
+        ),
       );
     } else {
       // Current cycle: started last month
       startDate = new Date(
-        now.getFullYear(),
-        now.getMonth() - 1,
-        monthStartDate,
-        0,
-        0,
-        0,
-        0,
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth() - 1,
+          monthStartDate,
+          0,
+          0,
+          0,
+          0,
+        ),
       );
       endDate = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        monthStartDate - 1,
-        23,
-        59,
-        59,
-        999,
+        Date.UTC(
+          now.getUTCFullYear(),
+          now.getUTCMonth(),
+          monthStartDate - 1,
+          23,
+          59,
+          59,
+          999,
+        ),
       );
     }
   }
