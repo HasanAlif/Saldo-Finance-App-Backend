@@ -9,6 +9,7 @@ import { goalsRoutes } from "../modules/goals/goals.routes";
 import { borrowedRoutes } from "../modules/borrowed/borrowed.routes";
 import { lentRoutes } from "../modules/lent/lent.routes";
 import { reportsRoutes } from "../modules/reports/reports.routes";
+import { analyticsRoutes } from "../modules/analytics/analytics.routes";
 
 const router = express.Router();
 
@@ -52,6 +53,10 @@ const moduleRoutes = [
   {
     path: "/reports",
     route: reportsRoutes,
+  },
+  {
+    path: "/analytics",
+    route: analyticsRoutes,
   },
 ];
 
