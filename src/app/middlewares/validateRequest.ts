@@ -5,7 +5,11 @@ const validateRequest =
   (schema: AnyZodObject | ZodEffects<any>) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      await schema.parseAsync(req.body);
+      await schema.parseAsync({
+        body: req.body,
+        params: req.params,
+        query: req.query,
+      });
       return next();
     } catch (err) {
       next(err);

@@ -10,6 +10,9 @@ import { borrowedRoutes } from "../modules/borrowed/borrowed.routes";
 import { lentRoutes } from "../modules/lent/lent.routes";
 import { reportsRoutes } from "../modules/reports/reports.routes";
 import { analyticsRoutes } from "../modules/analytics/analytics.routes";
+import path from "path";
+import { adminRoutes } from "../modules/admin/admin.routes";
+import { appContentRoutes } from "../modules/admin/appContent.route";
 
 const router = express.Router();
 
@@ -57,6 +60,14 @@ const moduleRoutes = [
   {
     path: "/analytics",
     route: analyticsRoutes,
+  },
+  {
+    path: "/admin",
+    route: adminRoutes,
+  },
+  {
+    path: "/app-content",
+    route: appContentRoutes,
   },
 ];
 
