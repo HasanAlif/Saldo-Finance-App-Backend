@@ -1,6 +1,3 @@
-import mongoose from "mongoose";
-import ApiError from "../../../errors/ApiErrors";
-import httpStatus from "http-status";
 import { ContentType, AppContent } from "./appContent.model";
 
 const getContentTypeName = (type: ContentType): string => {

@@ -1,12 +1,10 @@
 import httpStatus from "http-status";
 import mongoose from "mongoose";
 import ApiError from "../../../errors/ApiErrors";
-import { paginationHelper } from "../../../helpars/paginationHelper";
-import { IPaginationOptions } from "../../../interfaces/paginations";
 import { User } from "../../models/User.model";
 import { Balance, IBalance } from "./balance.model";
-import { Income, IIncome } from "./income.model";
-import { Spending, ISpending } from "./spending.model";
+import { Income } from "./income.model";
+import { Spending } from "./spending.model";
 
 // Create a new Account Balance
 const createAccount = async (

@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import * as bcrypt from "bcrypt";
 import { v2 as cloudinary } from "cloudinary";
 import ApiError from "../../../errors/ApiErrors";
