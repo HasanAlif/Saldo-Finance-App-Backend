@@ -2,6 +2,7 @@ import { Server } from "http";
 import config from "./config";
 import "./shared/database";
 import app from "./app";
+import scheduleExpiryCheck from "./app/modules/payment/payment.cron";
 
 let server: Server;
 
@@ -9,6 +10,8 @@ async function startServer() {
   server = app.listen(config.port, () => {
     console.log(`Server is running on port ${config.port}`);
   });
+
+  scheduleExpiryCheck();
 }
 
 async function main() {

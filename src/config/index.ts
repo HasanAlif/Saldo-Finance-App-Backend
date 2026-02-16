@@ -6,8 +6,16 @@ dotenv.config({ path: path.join(process.cwd(), ".env") });
 export default {
   env: process.env.NODE_ENV,
   database_url: process.env.DATABASE_URL,
-  // stripe_key: process.env.STRIPE_SECRET_KEY,
   port: process.env.PORT,
+  stripe: {
+    secret_key: process.env.STRIPE_SECRET_KEY,
+    publishable_key: process.env.STRIPE_PUBLISHABLE_KEY,
+    webhook_secret: process.env.STRIPE_WEBHOOK_SECRET,
+  },
+  payment: {
+    success_url: process.env.PAYMENT_SUCCESS_URL,
+    cancel_url: process.env.PAYMENT_CANCEL_URL,
+  },
   bcrypt_salt_rounds: process.env.BCRYPT_SALT_ROUNDS,
   jwt: {
     jwt_secret: process.env.JWT_SECRET,

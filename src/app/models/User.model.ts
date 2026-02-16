@@ -23,6 +23,14 @@ export enum AuthProvider {
   GOOGLE = "GOOGLE",
 }
 
+export enum PremiumPlan {
+  TRIAL = "TRIAL",
+  TRIAL_EXPIRED = "TRIAL_EXPIRED",
+  ANNUAL = "ANNUAL",
+  MONTHLY = "MONTHLY",
+  LIFETIME = "LIFETIME",
+}
+
 export interface IUser extends Document {
   _id: string;
   fullName: string;
@@ -34,6 +42,8 @@ export interface IUser extends Document {
   authProvider: AuthProvider;
   role: UserRole;
   status: UserStatus;
+  premiumPlan?: PremiumPlan;
+  premiumPlanExpiry?: Date | null;
   isDeleted: boolean;
   fcmToken?: string;
   country?: string;
@@ -91,9 +101,13 @@ const UserSchema = new Schema<IUser>(
       enum: Object.values(UserStatus),
       default: UserStatus.ACTIVE,
     },
-    isDeleted: {
-      type: Boolean,
-      default: false,
+    premiumPlan: {
+      type: String,
+      enum: Object.values(PremiumPlan),
+    },
+    premiumPlanExpiry: {
+      type: Date,
+      default: null,
     },
     fcmToken: {
       type: String,
@@ -131,5 +145,6 @@ const UserSchema = new Schema<IUser>(
 UserSchema.index({ role: 1 });
 UserSchema.index({ status: 1 });
 UserSchema.index({ mobileNumber: 1 });
+UserSchema.index({ premiumPlan: 1, premiumPlanExpiry: 1 });
 
 export const User = mongoose.model<IUser>("User", UserSchema);

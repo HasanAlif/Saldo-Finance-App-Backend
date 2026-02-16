@@ -6,6 +6,7 @@ import cookieParser from "cookie-parser";
 import GlobalErrorHandler from "./app/middlewares/globalErrorHandler";
 import router from "./app/routes";
 import { LANDING_PAGE_TEMPLATE } from "./utils/Template";
+import { paymentController } from "./app/modules/payment/payment.controller";
 
 const app: Application = express();
 export const corsOptions = {
@@ -18,6 +19,14 @@ export const corsOptions = {
 // Middleware setup
 app.use(cors(corsOptions));
 app.use(cookieParser());
+
+// Stripe webhook — must be before express.json() for raw body signature verification
+app.post(
+  "/api/payments/webhook",
+  express.raw({ type: "application/json" }),
+  paymentController.handleWebhook,
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
