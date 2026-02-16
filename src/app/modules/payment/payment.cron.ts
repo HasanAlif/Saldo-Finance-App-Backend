@@ -9,7 +9,9 @@ const scheduleExpiryCheck = () => {
 
       const result = await User.updateMany(
         {
-          premiumPlan: { $in: [PremiumPlan.MONTHLY, PremiumPlan.ANNUAL] },
+          premiumPlan: {
+            $in: [PremiumPlan.TRIAL, PremiumPlan.MONTHLY, PremiumPlan.ANNUAL],
+          },
           premiumPlanExpiry: { $ne: null, $lte: now },
         },
         {

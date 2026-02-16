@@ -198,8 +198,69 @@ const getCurrentPlan = async (userId: string) => {
   };
 };
 
+const activateTrialPlan = async (userId: string) => {
+  const user = await User.findById(userId)
+    .select("premiumPlan premiumPlanExpiry isEnjoyedTrial")
+    .lean();
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  if (user.isEnjoyedTrial) {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "You already enjoyed TRIAL plan. To enjoy Saldo Premium please buy a Plan",
+    );
+  }
+
+  if (
+    user.premiumPlan &&
+    [PremiumPlan.MONTHLY, PremiumPlan.ANNUAL, PremiumPlan.LIFETIME].includes(
+      user.premiumPlan,
+    )
+  ) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "You already have an active premium plan",
+    );
+  }
+
+  const mongoSession = await mongoose.startSession();
+  mongoSession.startTransaction();
+
+  try {
+    const trialExpiry = new Date();
+    trialExpiry.setDate(trialExpiry.getDate() + 7);
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        premiumPlan: PremiumPlan.TRIAL,
+        premiumPlanExpiry: trialExpiry,
+        isEnjoyedTrial: true,
+      },
+      { new: true, session: mongoSession },
+    ).select("premiumPlan premiumPlanExpiry isEnjoyedTrial");
+
+    await mongoSession.commitTransaction();
+
+    return {
+      premiumPlan: updatedUser?.premiumPlan,
+      premiumPlanExpiry: updatedUser?.premiumPlanExpiry,
+      isEnjoyedTrial: updatedUser?.isEnjoyedTrial,
+    };
+  } catch (error) {
+    await mongoSession.abortTransaction();
+    throw error;
+  } finally {
+    mongoSession.endSession();
+  }
+};
+
 export const paymentService = {
   createCheckoutSession,
   handleWebhookEvent,
   getCurrentPlan,
+  activateTrialPlan,
 };

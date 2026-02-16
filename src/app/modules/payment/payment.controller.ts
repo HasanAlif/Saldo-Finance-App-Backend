@@ -47,8 +47,20 @@ const getCurrentPlan = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const activateTrialPlan = catchAsync(async (req: Request, res: Response) => {
+  const result = await paymentService.activateTrialPlan(req.user.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Trial plan activated successfully",
+    data: result,
+  });
+});
+
 export const paymentController = {
   createCheckoutSession,
   handleWebhook,
   getCurrentPlan,
+  activateTrialPlan,
 };

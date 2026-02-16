@@ -15,5 +15,6 @@ router.post(
 
 router.get("/current-plan", auth(), paymentController.getCurrentPlan);
 
+router.post("/activate-trial", auth(), paymentController.activateTrialPlan);
 
 export const paymentRoutes = router;

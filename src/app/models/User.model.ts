@@ -44,6 +44,7 @@ export interface IUser extends Document {
   status: UserStatus;
   premiumPlan?: PremiumPlan;
   premiumPlanExpiry?: Date | null;
+  isEnjoyedTrial: boolean;
   isDeleted: boolean;
   fcmToken?: string;
   country?: string;
@@ -104,10 +105,15 @@ const UserSchema = new Schema<IUser>(
     premiumPlan: {
       type: String,
       enum: Object.values(PremiumPlan),
+      default: null,
     },
     premiumPlanExpiry: {
       type: Date,
       default: null,
+    },
+    isEnjoyedTrial: {
+      type: Boolean,
+      default: false,
     },
     fcmToken: {
       type: String,
