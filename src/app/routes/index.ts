@@ -13,6 +13,8 @@ import { analyticsRoutes } from "../modules/analytics/analytics.routes";
 import { adminRoutes } from "../modules/admin/admin.routes";
 import { appContentRoutes } from "../modules/admin/appContent.route";
 import { paymentRoutes } from "../modules/payment/payment.routes";
+import auth from "../middlewares/auth";
+import requirePremium from "../middlewares/requirePremium";
 
 const router = express.Router();
 
@@ -44,14 +46,17 @@ const moduleRoutes = [
   {
     path: "/goals",
     route: goalsRoutes,
+    middleware: [auth(), requirePremium],
   },
   {
     path: "/borrowed",
     route: borrowedRoutes,
+    middleware: [auth(), requirePremium],
   },
   {
     path: "/lent",
     route: lentRoutes,
+    middleware: [auth(), requirePremium],
   },
   {
     path: "/reports",
@@ -75,6 +80,12 @@ const moduleRoutes = [
   },
 ];
 
-moduleRoutes.forEach((route) => router.use(route.path, route.route));
+moduleRoutes.forEach((route) => {
+  if (route.middleware) {
+    router.use(route.path, ...route.middleware, route.route);
+  } else {
+    router.use(route.path, route.route);
+  }
+});
 
 export default router;
