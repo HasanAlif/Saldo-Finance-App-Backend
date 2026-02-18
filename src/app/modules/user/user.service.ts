@@ -18,6 +18,7 @@ const createUserIntoDb = async (payload: {
   mobileNumber: string;
   password: string;
   fcmToken?: string;
+  timezone?: string;
 }) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email: payload.email });
@@ -52,6 +53,7 @@ const createUserIntoDb = async (payload: {
     mobileNumber: payload.mobileNumber,
     password: hashedPassword,
     fcmToken: payload.fcmToken,
+    timezone: payload.timezone,
   });
 
   // Generate token
@@ -246,20 +248,26 @@ const accountUpdateIntoDb = async (
 
 const userProfileSetup = async (
   userId: string,
-  payload: { country: string; currency: string; language: string },
+  payload: {
+    country: string;
+    currency: string;
+    language: string;
+    timezone?: string;
+  },
 ) => {
-  const result = await User.findByIdAndUpdate(
-    userId,
-    {
-      country: payload.country,
-      currency: payload.currency,
-      language: payload.language,
-    },
-    {
-      new: true,
-      select: "_id fullName email country currency language",
-    },
-  ).lean();
+  const updateData: Record<string, any> = {
+    country: payload.country,
+    currency: payload.currency,
+    language: payload.language,
+  };
+  if (payload.timezone) {
+    updateData.timezone = payload.timezone;
+  }
+
+  const result = await User.findByIdAndUpdate(userId, updateData, {
+    new: true,
+    select: "_id fullName email country currency language timezone",
+  }).lean();
 
   if (!result) {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");

@@ -1,26 +1,46 @@
 import express from "express";
 import auth from "../../middlewares/auth";
+import validateRequest from "../../middlewares/validateRequest";
 import { UserRole } from "../../models";
 import { notificationController } from "./notification.controller";
+import { NotificationValidation } from "./notification.validation";
 
 const router = express.Router();
 
-// Get my notifications
+// User routes
 router.get("/me", auth(), notificationController.getMyNotifications);
-
-// Get unread count
 router.get("/unread-count", auth(), notificationController.getUnreadCount);
-
-// Mark all as read
 router.patch("/mark-all-read", auth(), notificationController.markAllAsRead);
+router.get(
+  "/:notificationId",
+  auth(),
+  notificationController.getSingleNotification,
+);
+router.delete(
+  "/:notificationId",
+  auth(),
+  notificationController.deleteNotification,
+);
 
-// Get single notification (marks as read)
-router.get("/:notificationId", auth(), notificationController.getSingleNotification);
+// Admin routes
+router.get(
+  "/",
+  auth(UserRole.ADMIN),
+  notificationController.getAllNotifications,
+);
 
-// Delete notification
-router.delete("/:notificationId", auth(), notificationController.deleteNotification);
+router.post(
+  "/send",
+  auth(UserRole.ADMIN),
+  validateRequest(NotificationValidation.sendNotificationSchema),
+  notificationController.sendNotification,
+);
 
-// Admin: Get all notifications
-router.get("/", auth(UserRole.ADMIN), notificationController.getAllNotifications);
+router.post(
+  "/send-bulk",
+  auth(UserRole.ADMIN),
+  validateRequest(NotificationValidation.sendBulkNotificationSchema),
+  notificationController.sendBulkNotification,
+);
 
 export const notificationsRoute = router;

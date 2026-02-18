@@ -12,6 +12,8 @@ export interface IBudget extends Document {
   budgetValue: number;
   currency: string;
   status: BudgetStatus;
+  notifiedThresholds: number[];
+  thresholdPeriodStart: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -43,6 +45,14 @@ const BudgetSchema = new Schema<IBudget>(
       type: String,
       enum: Object.values(BudgetStatus),
       required: true,
+    },
+    notifiedThresholds: {
+      type: [Number],
+      default: [],
+    },
+    thresholdPeriodStart: {
+      type: Date,
+      default: null,
     },
   },
   {

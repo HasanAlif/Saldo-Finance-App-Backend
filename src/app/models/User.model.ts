@@ -50,6 +50,7 @@ export interface IUser extends Document {
   country?: string;
   currency?: string;
   language?: string;
+  timezone?: string;
   monthStartDate?: number;
   resetPasswordOtp?: string;
   resetPasswordOtpExpiry?: Date;
@@ -127,6 +128,10 @@ const UserSchema = new Schema<IUser>(
     language: {
       type: String,
     },
+    timezone: {
+      type: String,
+      default: "UTC",
+    },
     monthStartDate: {
       type: Number,
       min: 1,
@@ -152,5 +157,6 @@ UserSchema.index({ role: 1 });
 UserSchema.index({ status: 1 });
 UserSchema.index({ mobileNumber: 1 });
 UserSchema.index({ premiumPlan: 1, premiumPlanExpiry: 1 });
+UserSchema.index({ timezone: 1, status: 1 });
 
 export const User = mongoose.model<IUser>("User", UserSchema);

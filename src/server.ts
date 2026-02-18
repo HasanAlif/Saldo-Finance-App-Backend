@@ -3,6 +3,7 @@ import config from "./config";
 import "./shared/database";
 import app from "./app";
 import scheduleExpiryCheck from "./app/modules/payment/payment.cron";
+import { scheduleNotificationCrons } from "./app/modules/notification/notification.cron";
 
 let server: Server;
 
@@ -12,6 +13,7 @@ async function startServer() {
   });
 
   scheduleExpiryCheck();
+  scheduleNotificationCrons();
 }
 
 async function main() {

@@ -8,12 +8,15 @@ import { userService } from "./user.service";
 
 // Register new user
 const createUser = catchAsync(async (req: Request, res: Response) => {
-  const { fullName, email, mobileNumber, password } = req.body;
+  const { fullName, email, mobileNumber, password, fcmToken, timezone } =
+    req.body;
   const result = await userService.createUserIntoDb({
     fullName,
     email,
     mobileNumber,
     password,
+    fcmToken,
+    timezone,
   });
 
   // Set token in cookie
@@ -108,11 +111,12 @@ const deleteMe = catchAsync(async (req: Request, res: Response) => {
 
 // Setup user profile (country, currency, language)
 const setupProfile = catchAsync(async (req: Request, res: Response) => {
-  const { country, currency, language } = req.body;
+  const { country, currency, language, timezone } = req.body;
   const result = await userService.userProfileSetup(req.user.id, {
     country,
     currency,
     language,
+    timezone,
   });
 
   sendResponse(res, {

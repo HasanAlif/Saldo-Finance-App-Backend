@@ -13,6 +13,8 @@ const CreateUserValidationSchema = z
       .min(10, "Mobile number must be at least 10 digits"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(8),
+    fcmToken: z.string().optional(),
+    timezone: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -37,6 +39,7 @@ const UserProfileSetupSchema = z.object({
   country: z.string().min(1, "Country is required"),
   currency: z.string().min(1, "Currency is required"),
   language: z.string().min(1, "Language is required"),
+  timezone: z.string().optional(),
 });
 
 export const UserValidation = {

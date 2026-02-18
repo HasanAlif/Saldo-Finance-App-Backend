@@ -2,6 +2,7 @@ import httpStatus from "http-status";
 import mongoose from "mongoose";
 import ApiError from "../../../errors/ApiErrors";
 import { User } from "../../models/User.model";
+import { notificationServices } from "../notification/notification.service";
 import { Balance, IBalance } from "./balance.model";
 import { Income } from "./income.model";
 import { Spending } from "./spending.model";
@@ -131,6 +132,17 @@ const addIncomeToAccount = async (
 
     await session.commitTransaction();
 
+    // Fire-and-forget: send transaction notification
+    notificationServices
+      .sendTransactionNotification(
+        userId,
+        "income",
+        payload.category,
+        payload.amount,
+        payload.currency,
+      )
+      .catch(() => {});
+
     return {
       income: income[0],
     };
@@ -204,6 +216,21 @@ const addSpendingToAccount = async (
     ).lean();
 
     await session.commitTransaction();
+
+    // Fire-and-forget: send transaction notification + check budget alerts
+    notificationServices
+      .sendTransactionNotification(
+        userId,
+        "spending",
+        payload.category,
+        payload.amount,
+        payload.currency,
+      )
+      .catch(() => {});
+
+    notificationServices
+      .checkBudgetAlerts(userId, payload.category)
+      .catch(() => {});
 
     return {
       spending: spending[0],

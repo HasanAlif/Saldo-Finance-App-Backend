@@ -82,7 +82,7 @@ const loginUser = async (payload: {
 const getMyProfile = async (userId: string) => {
   const userProfile = await User.findById(userId)
     .select(
-      "_id fullName email mobileNumber profilePicture role status createdAt",
+      "_id fullName email mobileNumber profilePicture role status premiumPlan premiumPlanExpiry isEnjoyedTrial country currency language timezone monthStartDate createdAt",
     )
     .lean();
 
