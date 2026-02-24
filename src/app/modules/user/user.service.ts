@@ -19,6 +19,7 @@ const createUserIntoDb = async (payload: {
   password: string;
   fcmToken?: string;
   timezone?: string;
+  countryCode?: string;
 }) => {
   // Check if user already exists
   const existingUser = await User.findOne({ email: payload.email });
@@ -51,6 +52,7 @@ const createUserIntoDb = async (payload: {
     fullName: payload.fullName,
     email: payload.email,
     mobileNumber: payload.mobileNumber,
+    countryCode: payload.countryCode,
     password: hashedPassword,
     fcmToken: payload.fcmToken,
     timezone: payload.timezone,

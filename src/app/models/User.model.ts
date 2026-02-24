@@ -47,6 +47,7 @@ export interface IUser extends Document {
   isEnjoyedTrial: boolean;
   isDeleted: boolean;
   fcmToken?: string;
+  countryCode?: string;
   country?: string;
   currency?: string;
   language?: string;
@@ -117,6 +118,9 @@ const UserSchema = new Schema<IUser>(
       default: false,
     },
     fcmToken: {
+      type: String,
+    },
+    countryCode: {
       type: String,
     },
     country: {
