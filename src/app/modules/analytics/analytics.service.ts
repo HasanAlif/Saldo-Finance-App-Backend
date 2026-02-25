@@ -58,6 +58,7 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
   const groupStage = {
     _id: { day: { $dayOfMonth: "$date" } },
     total: { $sum: "$amount" },
+    currency: { $last: "$currency" },
   };
 
   const [currentBalanceAgg, incomeAgg, spendingAgg] = await Promise.all([
@@ -65,8 +66,16 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
       { $match: { userId: uid } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]),
-    Income.aggregate([{ $match: matchStage }, { $group: groupStage }]),
-    Spending.aggregate([{ $match: matchStage }, { $group: groupStage }]),
+    Income.aggregate([
+      { $match: matchStage },
+      { $sort: { date: 1 } },
+      { $group: groupStage },
+    ]),
+    Spending.aggregate([
+      { $match: matchStage },
+      { $sort: { date: 1 } },
+      { $group: groupStage },
+    ]),
   ]);
 
   const currentBalance = currentBalanceAgg[0]?.total || 0;
@@ -88,8 +97,17 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
 
   const incomeMap = new Map<number, number>();
   const spendingMap = new Map<number, number>();
-  incomeAgg.forEach((i) => incomeMap.set(i._id.day, i.total));
-  spendingAgg.forEach((s) => spendingMap.set(s._id.day, s.total));
+  const currencyMap = new Map<number, string>();
+  incomeAgg.forEach((i) => {
+    incomeMap.set(i._id.day, i.total);
+    currencyMap.set(i._id.day, i.currency);
+  });
+  spendingAgg.forEach((s) => {
+    spendingMap.set(s._id.day, s.total);
+    if (!currencyMap.has(s._id.day)) {
+      currencyMap.set(s._id.day, s.currency);
+    }
+  });
 
   // Calculate net change per day
   const dailyNet: { day: number; net: number }[] = [];
@@ -134,11 +152,12 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
   const endBalance = runningBalance;
 
   // Work backwards from lastDay to build daily balances
-  const trend: { day: number; balance: number }[] = [];
+  const trend: { day: number; balance: number; currency: string }[] = [];
   for (let d = lastDay; d >= 1; d--) {
     trend.unshift({
       day: d,
       balance: Math.round(runningBalance * 100) / 100,
+      currency: currencyMap.get(d) || "USD",
     });
     runningBalance -= dailyNet[d - 1].net;
   }
