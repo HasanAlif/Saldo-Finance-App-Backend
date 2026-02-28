@@ -31,4 +31,10 @@ router.patch(
 
 router.delete("/:budgetId", auth(), budgetController.deleteBudget);
 
+router.get(
+  "/transactions-by-range",
+  auth(),
+  budgetController.getEarningAndSpendingByRange,
+);
+
 export const budgetRoutes = router;

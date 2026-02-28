@@ -4,6 +4,7 @@ import { Spending } from "../balance/spending.model";
 import { User } from "../../models/User.model";
 import ApiError from "../../../errors/ApiErrors";
 import httpStatus from "http-status";
+import { Income } from "../balance/income.model";
 
 interface CreateBudgetPayload {
   category: string;
@@ -294,10 +295,45 @@ const deleteBudget = async (budgetId: string, userId: string) => {
   return null;
 };
 
+const getEarningAndSpendingByRange = async (
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+) => {
+  const uid = new mongoose.Types.ObjectId(userId);
+
+  const matchStage = { userId: uid, date: { $gte: startDate, $lte: endDate } };
+  const groupStage = {
+    _id: { $dateToString: { format: "%Y-%m-%dT00:00:00.000Z", date: "$date" } },
+    amount: { $sum: "$amount" },
+  };
+
+  const [incomeAgg, spendingAgg] = await Promise.all([
+    Income.aggregate([
+      { $match: matchStage },
+      { $group: groupStage },
+      { $sort: { _id: 1 } },
+      { $project: { _id: 0, date: "$_id", amount: 1 } },
+    ]),
+    Spending.aggregate([
+      { $match: matchStage },
+      { $group: groupStage },
+      { $sort: { _id: 1 } },
+      { $project: { _id: 0, date: "$_id", amount: 1 } },
+    ]),
+  ]);
+
+  return {
+    earning: incomeAgg,
+    spending: spendingAgg,
+  };
+};
+
 export const budgetService = {
   createBudget,
   getBudget,
   updateBudget,
   deleteBudget,
   setMonthStartDate,
+  getEarningAndSpendingByRange,
 };
