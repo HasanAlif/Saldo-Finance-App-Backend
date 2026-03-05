@@ -16,17 +16,6 @@ router.post(
 
 router.get("/total-account", auth(), balanceController.getTotalAccount);
 
-router.get("/:accountId", auth(), balanceController.getAccountById);
-
-router.put(
-  "/:accountId",
-  auth(),
-  validateRequest(AccountValidation.UpdateAccountSchema),
-  balanceController.updateAccount,
-);
-
-router.delete("/:accountId", auth(), balanceController.deleteAccount);
-
 // Add income to account
 router.post(
   "/income",
@@ -54,5 +43,16 @@ router.get(
 );
 
 router.get("/current-balance", auth(), balanceController.getCurrentBalance);
+
+router.get("/:accountId", auth(), balanceController.getAccountById);
+
+router.put(
+  "/:accountId",
+  auth(),
+  validateRequest(AccountValidation.UpdateAccountSchema),
+  balanceController.updateAccount,
+);
+
+router.delete("/:accountId", auth(), balanceController.deleteAccount);
 
 export const BalanceRoutes = router;
