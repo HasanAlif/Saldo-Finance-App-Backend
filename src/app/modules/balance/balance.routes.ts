@@ -16,6 +16,8 @@ router.post(
 
 router.get("/total-account", auth(), balanceController.getTotalAccount);
 
+router.get("/:accountId", auth(), balanceController.getAccountById);
+
 router.put(
   "/:accountId",
   auth(),

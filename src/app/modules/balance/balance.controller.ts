@@ -26,6 +26,18 @@ const getTotalAccount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getAccountById = catchAsync(async (req: Request, res: Response) => {
+  const { accountId } = req.params;
+  const result = await balanceService.getAccountById(accountId, req.user.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Account retrieved successfully!",
+    data: result,
+  });
+});
+
 const updateAccount = catchAsync(async (req: Request, res: Response) => {
   const { accountId } = req.params;
   const result = await balanceService.updateAccount(
@@ -146,6 +158,7 @@ const getCurrentBalance = catchAsync(async (req: Request, res: Response) => {
 export const balanceController = {
   createAccount,
   getTotalAccount,
+  getAccountById,
   updateAccount,
   deleteAccount,
   addIncomeToAccount,

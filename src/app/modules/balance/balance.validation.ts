@@ -3,7 +3,7 @@ import { z } from "zod";
 const CreateAccountSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   amount: z.number().min(0, "Amount cannot be negative"),
-  currency: z.string().min(1, "Currency is required"),
+  currency: z.string().optional(),
   creditLimit: z.number().optional(),
   icon: z.string().optional(),
   accountType: z.string().optional(),
@@ -27,7 +27,7 @@ const AddIncomeSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   category: z.string().min(1, "Category is required"),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
-  currency: z.string().min(1, "Currency is required"),
+  currency: z.string().optional(),
   date: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date format",
   }),
@@ -42,7 +42,7 @@ const AddSpendingSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
   category: z.string().min(1, "Category is required"),
   amount: z.number().min(0.01, "Amount must be greater than 0"),
-  currency: z.string().min(1, "Currency is required"),
+  currency: z.string().optional(),
   date: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date format",
   }),

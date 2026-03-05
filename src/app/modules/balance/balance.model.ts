@@ -5,7 +5,7 @@ export interface IBalance extends Document {
   userId: mongoose.Types.ObjectId;
   name: string;
   amount: number;
-  currency: string;
+  currency?: string;
   creditLimit?: number;
   lastUpdated?: Date;
   icon?: string;
@@ -33,7 +33,7 @@ const BalanceSchema = new Schema<IBalance>(
     },
     currency: {
       type: String,
-      required: true,
+      default: "EUR",
     },
     creditLimit: {
       type: Number,

@@ -7,7 +7,7 @@ export interface IIncome {
   name: string;
   category: string;
   amount: number;
-  currency: string;
+  currency?: string;
   date: Date;
   time: string;
   fillForAllYear: boolean;
@@ -47,8 +47,7 @@ const IncomeSchema = new Schema<IIncome>(
     },
     currency: {
       type: String,
-      required: true,
-      default: "USD",
+      default: "EUR",
     },
     date: {
       type: Date,

@@ -37,7 +37,7 @@ const UpdateProfileSchema = z.object({
 // Profile Setup validation
 const UserProfileSetupSchema = z.object({
   country: z.string().min(1, "Country is required"),
-  currency: z.string().min(1, "Currency is required"),
+  currency: z.string().optional(),
   language: z.string().min(1, "Language is required"),
   timezone: z.string().optional(),
 });

@@ -15,7 +15,7 @@ export interface IPayment extends Document {
   stripePaymentIntentId?: string;
   plan: PremiumPlan;
   amount: number;
-  currency: string;
+  currency?: string;
   status: PaymentStatus;
   customerEmail?: string;
   paidAt?: Date;
@@ -50,7 +50,6 @@ const PaymentSchema = new Schema<IPayment>(
     },
     currency: {
       type: String,
-      required: true,
       default: "eur",
     },
     status: {

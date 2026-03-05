@@ -157,7 +157,7 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
     trend.unshift({
       day: d,
       balance: Math.round(runningBalance * 100) / 100,
-      currency: currencyMap.get(d) || "USD",
+      currency: currencyMap.get(d) || "EUR",
     });
     runningBalance -= dailyNet[d - 1].net;
   }

@@ -191,7 +191,7 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
   budgets.forEach((b) => {
     categoryMap.set(b.category.toLowerCase(), {
       original: b.category,
-      currency: b.currency,
+      currency: b.currency || "",
     });
   });
 
@@ -219,7 +219,7 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
   // Build spending lookup map: "category_currency" -> totalSpent
   const spendingMap = new Map<string, number>();
   spendingAggregation.forEach((s) => {
-    const key = `${s._id.category}_${s._id.currency.toLowerCase()}`;
+    const key = `${s._id.category}_${s._id.currency?.toLowerCase() || ""}`;
     spendingMap.set(key, s.totalSpent);
   });
 
@@ -229,7 +229,7 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
   // Build response with spending data
   let totalSpent = 0;
   const budgetsWithSpending = budgets.map((b) => {
-    const key = `${b.category.toLowerCase()}_${b.currency.toLowerCase()}`;
+    const key = `${b.category.toLowerCase()}_${b.currency?.toLowerCase() || ""}`;
     const amountSpent = spendingMap.get(key) || 0;
     totalSpent += amountSpent;
 
@@ -244,7 +244,7 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
       budgetValue: b.budgetValue,
       amountSpent,
       spendingPercentage,
-      currency: b.currency,
+      currency: b.currency || "",
     };
   });
 

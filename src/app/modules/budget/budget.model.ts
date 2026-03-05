@@ -10,7 +10,7 @@ export interface IBudget extends Document {
   userId: Types.ObjectId;
   category: string;
   budgetValue: number;
-  currency: string;
+  currency?: string;
   status: BudgetStatus;
   notifiedThresholds: number[];
   thresholdPeriodStart: Date | null;
@@ -38,8 +38,7 @@ const BudgetSchema = new Schema<IBudget>(
     },
     currency: {
       type: String,
-      required: true,
-      default: "USD",
+      default: "EUR",
     },
     status: {
       type: String,

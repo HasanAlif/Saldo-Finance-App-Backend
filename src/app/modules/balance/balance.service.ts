@@ -21,11 +21,18 @@ const createAccount = async (
 };
 
 const getTotalAccount = async (userId: string) => {
-  const accounts = await Balance.find({
-    userId,
-  })
-    .select("name amount currency")
-    .lean();
+  const uid = new mongoose.Types.ObjectId(userId);
+
+  const [accounts, spendingAgg] = await Promise.all([
+    Balance.find({ userId }).select("name amount currency creditLimit").lean(),
+    Spending.aggregate([
+      { $match: { userId: uid } },
+      { $group: { _id: "$accountId", usedBalance: { $sum: "$amount" } } },
+    ]),
+  ]);
+
+  const spendingMap = new Map<string, number>();
+  spendingAgg.forEach((s) => spendingMap.set(s._id.toString(), s.usedBalance));
 
   const totalBalance = accounts.reduce(
     (sum, account) => sum + account.amount,
@@ -38,10 +45,25 @@ const getTotalAccount = async (userId: string) => {
       name: account.name,
       amount: account.amount,
       currency: account.currency,
+      creditLimit: account.creditLimit,
+      usedBalance: spendingMap.get(account._id.toString()) || 0,
     })),
     totalBalance,
     totalAccounts: accounts.length,
   };
+};
+
+const getAccountById = async (accountId: string, userId: string) => {
+  const result = await Balance.findOne({
+    _id: accountId,
+    userId,
+  }).lean();
+
+  if (!result) {
+    throw new ApiError(httpStatus.NOT_FOUND, "Account not found");
+  }
+
+  return result;
 };
 
 const updateAccount = async (
@@ -461,6 +483,7 @@ const getCurrentBalance = async (userId: string) => {
 export const balanceService = {
   createAccount,
   getTotalAccount,
+  getAccountById,
   updateAccount,
   deleteAccount,
   addIncomeToAccount,

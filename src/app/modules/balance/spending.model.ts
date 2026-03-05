@@ -7,7 +7,7 @@ export interface ISpending {
   name: string;
   category: string;
   amount: number;
-  currency: string;
+  currency?: string;
   date: Date;
   time: string;
   createdAt?: Date;
@@ -46,8 +46,7 @@ const SpendingSchema = new Schema<ISpending>(
     },
     currency: {
       type: String,
-      required: true,
-      default: "USD",
+      default: "EUR",
     },
     date: {
       type: Date,
