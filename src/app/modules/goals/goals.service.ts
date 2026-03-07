@@ -42,6 +42,7 @@ const getAllGoals = async (userId: string) => {
     return {
       id: goal._id,
       name: goal.name,
+      icon: goal.icon || null,
       notes: goal.notes || null,
       targetAmount: goal.targetAmount,
       accumulatedAmount: goal.accumulatedAmount,

@@ -40,6 +40,7 @@ const getAllBorrowed = async (userId: string) => {
     return {
       id: item._id,
       name: item.name,
+      icon: item.icon || null,
       notes: item.notes || null,
       amount: item.amount,
       accumulatedAmount: item.accumulatedAmount,

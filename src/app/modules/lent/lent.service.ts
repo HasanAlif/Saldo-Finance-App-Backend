@@ -38,6 +38,7 @@ const getAllLent = async (userId: string) => {
     return {
       id: item._id,
       name: item.name,
+      icon: item.icon || null,
       notes: item.notes || null,
       lender: item.lender || null,
       amount: item.amount,
