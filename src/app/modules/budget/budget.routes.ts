@@ -13,6 +13,8 @@ router.post(
   budgetController.setMonthStartDate,
 );
 
+router.get("/get-start-date", auth(), budgetController.getMonthStartDate);
+
 router.post(
   "/",
   auth(),

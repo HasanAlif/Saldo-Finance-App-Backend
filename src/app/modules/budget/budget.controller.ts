@@ -84,6 +84,17 @@ const setMonthStartDate = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const getMonthStartDate = catchAsync(async (req: Request, res: Response) => {
+  const result = await budgetService.getMonthStartDate(req.user.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Month start date retrieved successfully!",
+    data: result,
+  });
+});
+
 const getEarningAndSpendingByRange = catchAsync(
   async (req: Request, res: Response) => {
     const { startDate, endDate } = req.query;
@@ -109,5 +120,6 @@ export const budgetController = {
   updateBudget,
   deleteBudget,
   setMonthStartDate,
+  getMonthStartDate,
   getEarningAndSpendingByRange,
 };

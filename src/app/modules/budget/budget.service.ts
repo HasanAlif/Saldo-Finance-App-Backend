@@ -129,6 +129,16 @@ const setMonthStartDate = async (userId: string, monthStartDate: number) => {
   return { monthStartDate: result.monthStartDate };
 };
 
+const getMonthStartDate = async (userId: string) => {
+  const user = await User.findById(userId).select("monthStartDate").lean();
+
+  if (!user) {
+    throw new ApiError(httpStatus.NOT_FOUND, "User not found");
+  }
+
+  return { monthStartDate: user.monthStartDate };
+};
+
 const createBudget = async (
   userId: string,
   payload: CreateBudgetPayload,
@@ -335,5 +345,6 @@ export const budgetService = {
   updateBudget,
   deleteBudget,
   setMonthStartDate,
+  getMonthStartDate,
   getEarningAndSpendingByRange,
 };
