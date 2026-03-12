@@ -82,7 +82,7 @@ const loginUser = async (payload: {
 const getMyProfile = async (userId: string) => {
   const userProfile = await User.findById(userId)
     .select(
-      "_id fullName email mobileNumber profilePicture role status premiumPlan premiumPlanExpiry isEnjoyedTrial country currency language timezone monthStartDate createdAt",
+      "_id fullName email mobileNumber profilePicture role status premiumPlan premiumPlanExpiry isEnjoyedTrial country countryCode currency language timezone monthStartDate createdAt",
     )
     .lean();
 
@@ -90,7 +90,25 @@ const getMyProfile = async (userId: string) => {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  return userProfile;
+  return {
+    _id: userProfile._id,
+    fullName: userProfile.fullName,
+    email: userProfile.email,
+    mobileNumber: userProfile.mobileNumber ?? null,
+    profilePicture: userProfile.profilePicture ?? null,
+    role: userProfile.role,
+    status: userProfile.status,
+    premiumPlan: userProfile.premiumPlan ?? null,
+    premiumPlanExpiry: userProfile.premiumPlanExpiry ?? null,
+    isEnjoyedTrial: userProfile.isEnjoyedTrial ?? false,
+    country: userProfile.country ?? null,
+    countryCode: userProfile.countryCode ?? null,
+    currency: userProfile.currency ?? null,
+    language: userProfile.language ?? null,
+    timezone: userProfile.timezone ?? null,
+    monthStartDate: userProfile.monthStartDate ?? null,
+    createdAt: userProfile.createdAt,
+  };
 };
 
 // Change password
