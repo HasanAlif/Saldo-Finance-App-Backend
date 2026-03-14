@@ -125,6 +125,39 @@ const getIncomeSpendingByDate = catchAsync(
   },
 );
 
+const getIncomeSpendingByDateRange = catchAsync(
+  async (req: Request, res: Response) => {
+    const { startDate, endDate } = req.query;
+
+    if (
+      !startDate ||
+      !endDate ||
+      typeof startDate !== "string" ||
+      typeof endDate !== "string"
+    ) {
+      return sendResponse(res, {
+        statusCode: httpStatus.BAD_REQUEST,
+        success: false,
+        message: "Start date and end date query parameters are required",
+        data: null,
+      });
+    }
+
+    const result = await balanceService.getIncomeSpendingByDateRange(
+      req.user.id,
+      new Date(startDate),
+      new Date(endDate),
+    );
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Income and spending for the date range retrieved successfully!",
+      data: result,
+    });
+  },
+);
+
 const getIncomeSpendingByMonth = catchAsync(
   async (req: Request, res: Response) => {
     const { month } = req.query;
@@ -164,6 +197,7 @@ export const balanceController = {
   addIncomeToAccount,
   addSpendingToAccount,
   getIncomeSpendingByDate,
+  getIncomeSpendingByDateRange,
   getIncomeSpendingByMonth,
   getCurrentBalance,
 };

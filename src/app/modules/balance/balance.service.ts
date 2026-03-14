@@ -321,6 +321,36 @@ const getIncomeSpendingByDate = async (userId: string, date: string) => {
   };
 };
 
+const getIncomeSpendingByDateRange = async (
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+) => {
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const dateFilter = {
+    userId: userObjectId,
+    date: { $gte: startDate, $lte: endDate },
+  };
+  const projection = { date: 1, category: 1, name: 1, amount: 1, _id: 0 };
+
+  const [incomeEntries, spendingEntries] = await Promise.all([
+    Income.find(dateFilter, projection).sort({ date: 1 }).lean(),
+    Spending.find(dateFilter, projection).sort({ date: 1 }).lean(),
+  ]);
+
+  const totalIncome = incomeEntries.reduce((sum, e) => sum + e.amount, 0);
+  const totalSpending = spendingEntries.reduce((sum, e) => sum + e.amount, 0);
+
+  return {
+    startDate: startDate.toISOString().split("T")[0],
+    endDate: endDate.toISOString().split("T")[0],
+    totalIncome,
+    totalSpending,
+    earning: incomeEntries,
+    spending: spendingEntries,
+  };
+};
+
 // Get monthly income and spending summary
 const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
   // Get user's custom month start date
@@ -470,6 +500,7 @@ export const balanceService = {
   addIncomeToAccount,
   addSpendingToAccount,
   getIncomeSpendingByDate,
+  getIncomeSpendingByDateRange,
   getIncomeSpendingByMonth,
   getCurrentBalance,
 };

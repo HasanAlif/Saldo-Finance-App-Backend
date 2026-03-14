@@ -51,9 +51,21 @@ const AddSpendingSchema = z.object({
   }),
 });
 
+const DateRangeSchema = z.object({
+  query: z.object({
+    startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+      message: "Invalid start date format",
+    }),
+    endDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+      message: "Invalid end date format",
+    }),
+  }),
+});
+
 export const AccountValidation = {
   CreateAccountSchema,
   UpdateAccountSchema,
   AddIncomeSchema,
   AddSpendingSchema,
+  DateRangeSchema,
 };

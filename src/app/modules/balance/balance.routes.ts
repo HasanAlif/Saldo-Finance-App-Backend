@@ -35,6 +35,13 @@ router.post(
 // Get daily income and spending summary
 router.get("/daily-summary", auth(), balanceController.getIncomeSpendingByDate);
 
+router.get(
+  "/range-summary",
+  auth(),
+  validateRequest(AccountValidation.DateRangeSchema),
+  balanceController.getIncomeSpendingByDateRange,
+);
+
 // Get monthly income and spending summary
 router.get(
   "/monthly-summary",
