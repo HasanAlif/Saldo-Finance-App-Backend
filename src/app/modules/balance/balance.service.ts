@@ -297,46 +297,27 @@ const getIncomeSpendingByDate = async (userId: string, date: string) => {
     ),
   );
 
-  // Calculate total income for the date
-  const incomeResult = await Income.aggregate([
-    {
-      $match: {
-        userId: new mongoose.Types.ObjectId(userId),
-        date: { $gte: startDate, $lte: endDate },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalIncome: { $sum: "$amount" },
-      },
-    },
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+  const dateFilter = {
+    userId: userObjectId,
+    date: { $gte: startDate, $lte: endDate },
+  };
+  const projection = { date: 1, category: 1, name: 1, amount: 1, _id: 0 };
+
+  const [incomeEntries, spendingEntries] = await Promise.all([
+    Income.find(dateFilter, projection).sort({ date: 1 }).lean(),
+    Spending.find(dateFilter, projection).sort({ date: 1 }).lean(),
   ]);
 
-  // Calculate total spending for the date
-  const spendingResult = await Spending.aggregate([
-    {
-      $match: {
-        userId: new mongoose.Types.ObjectId(userId),
-        date: { $gte: startDate, $lte: endDate },
-      },
-    },
-    {
-      $group: {
-        _id: null,
-        totalSpending: { $sum: "$amount" },
-      },
-    },
-  ]);
-
-  const totalIncome = incomeResult.length > 0 ? incomeResult[0].totalIncome : 0;
-  const totalSpending =
-    spendingResult.length > 0 ? spendingResult[0].totalSpending : 0;
+  const totalIncome = incomeEntries.reduce((sum, e) => sum + e.amount, 0);
+  const totalSpending = spendingEntries.reduce((sum, e) => sum + e.amount, 0);
 
   return {
     date: startDate.toISOString().split("T")[0],
     totalIncome,
     totalSpending,
+    earning: incomeEntries,
+    spending: spendingEntries,
   };
 };
 
