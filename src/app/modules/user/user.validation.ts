@@ -8,11 +8,9 @@ const CreateUserValidationSchema = z
       .min(2, "Full name must be at least 2 characters")
       .max(100),
     email: z.string().email("Please provide a valid email"),
-    mobileNumber: z
-      .string()
-      .min(10, "Mobile number must be at least 10 digits"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(8),
+    mobileNumber: z.string().optional(),
     fcmToken: z.string().optional(),
     timezone: z.string().optional(),
   })
