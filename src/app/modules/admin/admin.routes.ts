@@ -16,5 +16,10 @@ router.get(
   auth(UserRole.ADMIN),
   adminController.getMonthlyPremiumUsersGrowth,
 );
+router.get(
+  "/recent-users",
+  auth(UserRole.ADMIN),
+  adminController.getRecentUsers,
+);
 
 export const adminRoutes = router;

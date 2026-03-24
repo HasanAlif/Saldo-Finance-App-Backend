@@ -82,10 +82,22 @@ const getMonthlyPremiumUsersGrowth = catchAsync(async (req, res) => {
   });
 });
 
+const getRecentUsers = catchAsync(async (req, res) => {
+  const result = await adminService.getRecentUsers();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Recent users retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   createOrUpdateContent,
   getContentByType,
   getUsersCount,
   getMonthlyUserGrowth,
   getMonthlyPremiumUsersGrowth,
+  getRecentUsers,
 };
