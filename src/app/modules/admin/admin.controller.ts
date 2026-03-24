@@ -58,8 +58,21 @@ const getUsersCount = catchAsync(async (req, res) => {
   });
 });
 
+const getMonthlyUserGrowth = catchAsync(async (req, res) => {
+  const year = parseInt(req.query.year as string) || new Date().getFullYear();
+  const result = await adminService.getMonthlyUserGrowth(year);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Monthly user growth retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   createOrUpdateContent,
   getContentByType,
   getUsersCount,
+  getMonthlyUserGrowth,
 };
