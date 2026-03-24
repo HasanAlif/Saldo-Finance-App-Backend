@@ -11,5 +11,10 @@ router.get(
   auth(UserRole.ADMIN),
   adminController.getMonthlyUserGrowth,
 );
+router.get(
+  "/monthly-premium-users-growth",
+  auth(UserRole.ADMIN),
+  adminController.getMonthlyPremiumUsersGrowth,
+);
 
 export const adminRoutes = router;
