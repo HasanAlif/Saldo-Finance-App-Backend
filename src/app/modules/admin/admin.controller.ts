@@ -93,6 +93,19 @@ const getRecentUsers = catchAsync(async (req, res) => {
   });
 });
 
+const getAllUsers = catchAsync(async (req, res) => {
+  const plan = req.query.plan as string | undefined;
+  const status = req.query.status as string | undefined;
+  const result = await adminService.getAllUsers(plan, status);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Users retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   createOrUpdateContent,
   getContentByType,
@@ -100,4 +113,5 @@ export const adminController = {
   getMonthlyUserGrowth,
   getMonthlyPremiumUsersGrowth,
   getRecentUsers,
+  getAllUsers,
 };

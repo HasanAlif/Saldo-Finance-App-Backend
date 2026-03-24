@@ -218,6 +218,39 @@ const getRecentUsers = async () => {
   }));
 };
 
+const getAllUsers = async (plan?: string, status?: string) => {
+  const query: Record<string, unknown> = { role: UserRole.USER };
+
+  if (plan) {
+    query.premiumPlan = plan;
+  }
+  if (status) {
+    query.status = status;
+  }
+
+  const users = await User.find(query, {
+    fullName: 1,
+    email: 1,
+    profilePicture: 1,
+    mobileNumber: 1,
+    country: 1,
+    premiumPlan: 1,
+    status: 1,
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+
+  return users.map((user) => ({
+    name: user.fullName || null,
+    email: user.email || null,
+    profilePicture: user.profilePicture || null,
+    phoneNumber: user.mobileNumber || null,
+    location: user.country || null,
+    premiumPlan: user.premiumPlan || null,
+    status: user.status || null,
+  }));
+};
+
 export const adminService = {
   getContentTypeName,
   createOrUpdateContent,
@@ -226,4 +259,5 @@ export const adminService = {
   getMonthlyUserGrowth,
   getMonthlyPremiumUsersGrowth,
   getRecentUsers,
+  getAllUsers,
 };

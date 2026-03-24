@@ -21,5 +21,6 @@ router.get(
   auth(UserRole.ADMIN),
   adminController.getRecentUsers,
 );
+router.get("/users", auth(UserRole.ADMIN), adminController.getAllUsers);
 
 export const adminRoutes = router;
