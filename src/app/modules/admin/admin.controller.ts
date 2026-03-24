@@ -47,7 +47,19 @@ const getContentByType = catchAsync(async (req, res) => {
   });
 });
 
+const getUsersCount = catchAsync(async (req, res) => {
+  const result = await adminService.getUsersCount();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Users count retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   createOrUpdateContent,
   getContentByType,
+  getUsersCount,
 };

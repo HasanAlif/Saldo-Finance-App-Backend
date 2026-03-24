@@ -6,4 +6,6 @@ import { UserRole } from "../../models";
 
 const router = express.Router();
 
+router.get("/users-count", auth(UserRole.ADMIN), adminController.getUsersCount);
+
 export const adminRoutes = router;
