@@ -42,61 +42,18 @@ const getContentByType = async (type: ContentType) => {
 };
 
 const getUsersCount = async () => {
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-
-  const dateFilter = { $gte: thirtyDaysAgo };
-
-  const [
-    totalUsers,
-    incomeActiveUsers,
-    spendingActiveUsers,
-    balanceActiveUsers,
-    goalsActiveUsers,
-    borrowedActiveUsers,
-    lentActiveUsers,
-    budgetActiveUsers,
-  ] = await Promise.all([
-    User.countDocuments({ role: UserRole.USER }),
-    Income.distinct("userId", {
-      $or: [{ createdAt: dateFilter }, { updatedAt: dateFilter }],
-    }),
-    Spending.distinct("userId", {
-      $or: [{ createdAt: dateFilter }, { updatedAt: dateFilter }],
-    }),
-    Balance.distinct("userId", {
-      $or: [{ createdAt: dateFilter }, { updatedAt: dateFilter }],
-    }),
-    Goals.distinct("userId", {
-      $or: [{ createdAt: dateFilter }, { updatedAt: dateFilter }],
-    }),
-    Borrowed.distinct("userId", {
-      $or: [{ createdAt: dateFilter }, { updatedAt: dateFilter }],
-    }),
-    Lent.distinct("userId", {
-      $or: [{ createdAt: dateFilter }, { updatedAt: dateFilter }],
-    }),
-    Budget.distinct("userId", {
-      $or: [{ createdAt: dateFilter }, { updatedAt: dateFilter }],
-    }),
-  ]);
-
-  const activeUserIds = new Set([
-    ...incomeActiveUsers.map((id) => id.toString()),
-    ...spendingActiveUsers.map((id) => id.toString()),
-    ...balanceActiveUsers.map((id) => id.toString()),
-    ...goalsActiveUsers.map((id) => id.toString()),
-    ...borrowedActiveUsers.map((id) => id.toString()),
-    ...lentActiveUsers.map((id) => id.toString()),
-    ...budgetActiveUsers.map((id) => id.toString()),
-  ]);
-
-  const activeUsers = activeUserIds.size;
-  const inactiveUsers = totalUsers - activeUsers;
-
+  const totalUsers = await User.countDocuments({ role: UserRole.USER });
+  const activeUsers = await User.countDocuments({
+    role: UserRole.USER,
+    status: "ACTIVE",
+  });
+  const inactiveUsers = await User.countDocuments({
+    role: UserRole.USER,
+    status: "INACTIVE",
+  });
   return {
+    "Inactive Users": inactiveUsers,
     "Active Users": activeUsers,
-    "InActive Users": inactiveUsers,
     "Total Users": totalUsers,
   };
 };
