@@ -4,6 +4,10 @@ import "./shared/database";
 import app from "./app";
 import scheduleExpiryCheck from "./app/modules/payment/payment.cron";
 import { scheduleNotificationCrons } from "./app/modules/notification/notification.cron";
+import {
+  scheduleUserStatusUpdate,
+  updateUserStatus,
+} from "./app/modules/user/user.cron";
 
 let server: Server;
 
@@ -14,6 +18,8 @@ async function startServer() {
 
   scheduleExpiryCheck();
   scheduleNotificationCrons();
+  scheduleUserStatusUpdate();
+  updateUserStatus();
 }
 
 async function main() {
