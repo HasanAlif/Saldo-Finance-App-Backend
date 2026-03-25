@@ -1,12 +1,5 @@
 import { ContentType, AppContent } from "./appContent.model";
 import { User, UserRole } from "../../models";
-import { Income } from "../balance/income.model";
-import { Spending } from "../balance/spending.model";
-import { Balance } from "../balance/balance.model";
-import { Goals } from "../goals/goals.model";
-import { Borrowed } from "../borrowed/borrowed.model";
-import { Lent } from "../lent/lent.model";
-import { Budget } from "../budget/budget.model";
 import { Payment, PaymentStatus } from "../payment/payment.model";
 import { paginationHelper } from "../../../helpars/paginationHelper";
 
