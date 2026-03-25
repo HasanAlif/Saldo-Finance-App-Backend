@@ -119,6 +119,20 @@ const getPlanCount = catchAsync(async (req, res) => {
   });
 });
 
+const searchUsers = catchAsync(async (req, res) => {
+  const query = req.query.q as string;
+  const page = req.query.page ? Number(req.query.page) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : undefined;
+  const result = await adminService.searchUsers(query, page, limit);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Users searched successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   createOrUpdateContent,
   getContentByType,
@@ -128,4 +142,5 @@ export const adminController = {
   getRecentUsers,
   getAllUsers,
   getPlanCount,
+  searchUsers,
 };

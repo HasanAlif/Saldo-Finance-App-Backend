@@ -25,4 +25,6 @@ router.get("/users", auth(UserRole.ADMIN), adminController.getAllUsers);
 
 router.get("/plan-count", auth(UserRole.ADMIN), adminController.getPlanCount);
 
+router.get("/search-users", auth(UserRole.ADMIN), adminController.searchUsers);
+
 export const adminRoutes = router;

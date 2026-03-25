@@ -240,6 +240,216 @@ const getPlanCount = async () => {
   };
 };
 
+const searchUsers = async (
+  searchQuery: string,
+  page?: number,
+  limit?: number,
+) => {
+  const paginationData = paginationHelper.calculatePagination({ page, limit });
+
+  const query = searchQuery?.trim() || "";
+
+  if (!query) {
+    return {
+      meta: {
+        page: paginationData.page,
+        limit: paginationData.limit,
+        total: 0,
+        totalPages: 0,
+      },
+      data: [],
+    };
+  }
+
+  const escapedQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const queryLower = query.toLowerCase();
+
+  const pipeline = [
+    {
+      $match: {
+        role: UserRole.USER,
+        $or: [
+          { fullName: { $regex: escapedQuery, $options: "i" } },
+          { email: { $regex: escapedQuery, $options: "i" } },
+          { mobileNumber: { $regex: escapedQuery, $options: "i" } },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        relevanceScore: {
+          $add: [
+            // Exact match (highest priority: 100 points)
+            {
+              $cond: [
+                {
+                  $eq: [
+                    { $toLower: { $ifNull: ["$fullName", ""] } },
+                    queryLower,
+                  ],
+                },
+                100,
+                0,
+              ],
+            },
+            {
+              $cond: [
+                {
+                  $eq: [{ $toLower: { $ifNull: ["$email", ""] } }, queryLower],
+                },
+                100,
+                0,
+              ],
+            },
+            {
+              $cond: [
+                { $eq: [{ $ifNull: ["$mobileNumber", ""] }, query] },
+                100,
+                0,
+              ],
+            },
+            // Starts with match (high priority: 50 points)
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: { $ifNull: ["$fullName", ""] },
+                    regex: `^${escapedQuery}`,
+                    options: "i",
+                  },
+                },
+                50,
+                0,
+              ],
+            },
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: { $ifNull: ["$email", ""] },
+                    regex: `^${escapedQuery}`,
+                    options: "i",
+                  },
+                },
+                50,
+                0,
+              ],
+            },
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: { $ifNull: ["$mobileNumber", ""] },
+                    regex: `^${escapedQuery}`,
+                    options: "i",
+                  },
+                },
+                50,
+                0,
+              ],
+            },
+            // Contains match (lower priority: 10 points)
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: { $ifNull: ["$fullName", ""] },
+                    regex: escapedQuery,
+                    options: "i",
+                  },
+                },
+                10,
+                0,
+              ],
+            },
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: { $ifNull: ["$email", ""] },
+                    regex: escapedQuery,
+                    options: "i",
+                  },
+                },
+                10,
+                0,
+              ],
+            },
+            {
+              $cond: [
+                {
+                  $regexMatch: {
+                    input: { $ifNull: ["$mobileNumber", ""] },
+                    regex: escapedQuery,
+                    options: "i",
+                  },
+                },
+                10,
+                0,
+              ],
+            },
+          ],
+        },
+      },
+    },
+    { $sort: { relevanceScore: -1 as const, createdAt: -1 as const } },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }],
+        data: [
+          { $skip: paginationData.skip },
+          { $limit: paginationData.limit },
+          {
+            $project: {
+              fullName: 1,
+              email: 1,
+              profilePicture: 1,
+              mobileNumber: 1,
+              country: 1,
+              premiumPlan: 1,
+              status: 1,
+            },
+          },
+        ],
+      },
+    },
+  ];
+
+  const [result] = await User.aggregate(pipeline);
+  const total = result?.metadata[0]?.total || 0;
+  const users = result?.data || [];
+
+  const formattedUsers = users.map(
+    (user: {
+      fullName?: string;
+      email?: string;
+      profilePicture?: string;
+      mobileNumber?: string;
+      country?: string;
+      premiumPlan?: string;
+      status?: string;
+    }) => ({
+      name: user.fullName || null,
+      email: user.email || null,
+      profilePicture: user.profilePicture || null,
+      phoneNumber: user.mobileNumber || null,
+      location: user.country || null,
+      premiumPlan: user.premiumPlan || null,
+      status: user.status || null,
+    }),
+  );
+
+  return {
+    meta: {
+      page: paginationData.page,
+      limit: paginationData.limit,
+      total,
+      totalPages: Math.ceil(total / paginationData.limit) || 0,
+    },
+    data: formattedUsers,
+  };
+};
+
 export const adminService = {
   getContentTypeName,
   createOrUpdateContent,
@@ -250,4 +460,5 @@ export const adminService = {
   getRecentUsers,
   getAllUsers,
   getPlanCount,
+  searchUsers,
 };
