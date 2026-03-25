@@ -96,7 +96,9 @@ const getRecentUsers = catchAsync(async (req, res) => {
 const getAllUsers = catchAsync(async (req, res) => {
   const plan = req.query.plan as string | undefined;
   const status = req.query.status as string | undefined;
-  const result = await adminService.getAllUsers(plan, status);
+  const page = req.query.page ? Number(req.query.page) : undefined;
+  const limit = req.query.limit ? Number(req.query.limit) : undefined;
+  const result = await adminService.getAllUsers(plan, status, page, limit);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

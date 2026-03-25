@@ -8,6 +8,7 @@ import { Borrowed } from "../borrowed/borrowed.model";
 import { Lent } from "../lent/lent.model";
 import { Budget } from "../budget/budget.model";
 import { Payment, PaymentStatus } from "../payment/payment.model";
+import { paginationHelper } from "../../../helpars/paginationHelper";
 
 const getContentTypeName = (type: ContentType): string => {
   const typeNames: Record<ContentType, string> = {
@@ -175,7 +176,12 @@ const getRecentUsers = async () => {
   }));
 };
 
-const getAllUsers = async (plan?: string, status?: string) => {
+const getAllUsers = async (
+  plan?: string,
+  status?: string,
+  page?: number,
+  limit?: number,
+) => {
   const query: Record<string, unknown> = { role: UserRole.USER };
 
   if (plan) {
@@ -184,6 +190,13 @@ const getAllUsers = async (plan?: string, status?: string) => {
   if (status) {
     query.status = status;
   }
+
+  const paginationData = paginationHelper.calculatePagination({
+    page,
+    limit,
+  });
+
+  const total = await User.countDocuments(query);
 
   const users = await User.find(query, {
     fullName: 1,
@@ -195,9 +208,11 @@ const getAllUsers = async (plan?: string, status?: string) => {
     status: 1,
   })
     .sort({ createdAt: -1 })
+    .skip(paginationData.skip)
+    .limit(paginationData.limit)
     .lean();
 
-  return users.map((user) => ({
+  const formattedUsers = users.map((user) => ({
     name: user.fullName || null,
     email: user.email || null,
     profilePicture: user.profilePicture || null,
@@ -206,6 +221,16 @@ const getAllUsers = async (plan?: string, status?: string) => {
     premiumPlan: user.premiumPlan || null,
     status: user.status || null,
   }));
+
+  return {
+    meta: {
+      page: paginationData.page,
+      limit: paginationData.limit,
+      total,
+      totalPages: Math.ceil(total / paginationData.limit),
+    },
+    data: formattedUsers,
+  };
 };
 
 export const adminService = {
