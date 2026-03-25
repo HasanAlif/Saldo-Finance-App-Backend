@@ -233,6 +233,20 @@ const getAllUsers = async (
   };
 };
 
+const getPlanCount = async () => {
+  const trialUsers = await User.countDocuments({ premiumPlan: "TRIAL" });
+  const monthlyUsers = await User.countDocuments({ premiumPlan: "MONTHLY" });
+  const annualUsers = await User.countDocuments({ premiumPlan: "ANNUAL" });
+  const lifetimeUsers = await User.countDocuments({ premiumPlan: "LIFETIME" });
+
+  return {
+    "Trial Users": trialUsers,
+    "Monthly Users": monthlyUsers,
+    "Annual Users": annualUsers,
+    "Lifetime Users": lifetimeUsers,
+  };
+};
+
 export const adminService = {
   getContentTypeName,
   createOrUpdateContent,
@@ -242,4 +256,5 @@ export const adminService = {
   getMonthlyPremiumUsersGrowth,
   getRecentUsers,
   getAllUsers,
+  getPlanCount,
 };

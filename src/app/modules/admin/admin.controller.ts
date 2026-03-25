@@ -108,6 +108,17 @@ const getAllUsers = catchAsync(async (req, res) => {
   });
 });
 
+const getPlanCount = catchAsync(async (req, res) => {
+  const result = await adminService.getPlanCount();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Plan count retrieved successfully",
+    data: result,
+  });
+});
+
 export const adminController = {
   createOrUpdateContent,
   getContentByType,
@@ -116,4 +127,5 @@ export const adminController = {
   getMonthlyPremiumUsersGrowth,
   getRecentUsers,
   getAllUsers,
+  getPlanCount,
 };
