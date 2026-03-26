@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AuthProvider } from "../../models";
 
 const changePasswordValidationSchema = z.object({
   oldPassword: z.string().min(1, "Current password is required"),
@@ -30,10 +31,19 @@ const resendOtpSchema = z.object({
   email: z.string().email("Please provide a valid email"),
 });
 
+const socialLoginValidationSchema = z.object({
+  email: z.string().email("Please provide a valid email"),
+  name: z.string().min(1, "Name is required"),
+  profileImage: z.string().optional(),
+  provider: z.nativeEnum(AuthProvider),
+  providerId: z.string().min(1, "Provider ID is required"),
+});
+
 export const authValidation = {
   changePasswordValidationSchema,
   forgotPasswordSchema,
   verifyOtpSchema,
   resetPasswordValidationSchema,
   resendOtpSchema,
+  socialLoginValidationSchema,
 };

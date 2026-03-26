@@ -1,20 +1,12 @@
 import * as bcrypt from "bcrypt";
 import crypto from "crypto";
 import httpStatus from "http-status";
-import { OAuth2Client } from "google-auth-library";
 import config from "../../../config";
 import ApiError from "../../../errors/ApiErrors";
 import { jwtHelpers } from "../../../helpars/jwtHelpers";
 import emailSender from "../../../shared/emailSender";
 import { PASSWORD_RESET_TEMPLATE } from "../../../utils/Template";
 import { AuthProvider, User } from "../../models";
-
-// Initialize Google OAuth client
-const googleClient = new OAuth2Client(
-  config.google.clientId,
-  config.google.clientSecret,
-  config.google.callbackUrl,
-);
 
 // User login
 const loginUser = async (payload: {
@@ -30,11 +22,8 @@ const loginUser = async (payload: {
     throw new ApiError(httpStatus.NOT_FOUND, "Invalid email or password");
   }
 
-  if (userData.status !== "ACTIVE") {
-    throw new ApiError(
-      httpStatus.FORBIDDEN,
-      "Your account is inactive or blocked",
-    );
+  if (userData.status === "BLOCKED") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Your account has been blocked");
   }
 
   // Check if user is Google-only (no password)
@@ -269,88 +258,58 @@ const resetPassword = async (
   return { message: "Password reset successfully" };
 };
 
-// Get Google OAuth URL
-const getGoogleAuthUrl = () => {
-  const scopes = [
-    "https://www.googleapis.com/auth/userinfo.profile",
-    "https://www.googleapis.com/auth/userinfo.email",
-  ];
+// Social Login (Google, etc.)
+const socialLogin = async (payload: {
+  email: string;
+  name: string;
+  profileImage?: string;
+  provider: AuthProvider;
+  providerId: string;
+}) => {
+  const { email, name, profileImage, provider, providerId } = payload;
 
-  const authUrl = googleClient.generateAuthUrl({
-    access_type: "offline",
-    scope: scopes,
-    prompt: "consent",
-  });
+  let user = await User.findOne({ email }).lean();
 
-  return { authUrl };
-};
-
-// Handle Google OAuth callback
-const googleCallback = async (code: string) => {
-  // Exchange code for tokens
-  const { tokens } = await googleClient.getToken(code);
-  googleClient.setCredentials(tokens);
-
-  // Get user info from Google
-  const ticket = await googleClient.verifyIdToken({
-    idToken: tokens.id_token as string,
-    audience: config.google.clientId,
-  });
-
-  const payload = ticket.getPayload();
-
-  if (!payload || !payload.email) {
-    throw new ApiError(
-      httpStatus.BAD_REQUEST,
-      "Failed to get user info from Google",
-    );
-  }
-
-  const { sub: googleId, email, name, picture } = payload;
-
-  // Check if user exists with this googleId
-  let user = await User.findOne({ googleId }).lean();
-
-  if (!user) {
-    // Check if user exists with this email (local account)
-    user = await User.findOne({ email }).lean();
-
-    if (user) {
-      // Link Google account to existing local account
+  if (user) {
+    // User exists - check if linking is needed
+    if (user.authProvider === AuthProvider.LOCAL) {
+      // Link Google account to existing LOCAL user
       await User.findByIdAndUpdate(user._id, {
-        googleId,
-        authProvider: AuthProvider.GOOGLE,
-        profilePicture: user.profilePicture || picture,
+        googleId: providerId,
+        authProvider: provider,
+        profilePicture: user.profilePicture || profileImage,
       });
       user = await User.findById(user._id).lean();
-    } else {
-      // Create new user with Google account
-      const newUser = await User.create({
-        fullName: name || "Google User",
-        email,
-        googleId,
-        profilePicture: picture,
-        authProvider: AuthProvider.GOOGLE,
-      });
-      user = await User.findById(newUser._id).lean();
+    } else if (user.googleId && user.googleId !== providerId) {
+      // Different Google account trying to use same email
+      throw new ApiError(
+        httpStatus.BAD_REQUEST,
+        "This email is already registered with a different Google account",
+      );
     }
+  } else {
+    // Create new user
+    const newUser = await User.create({
+      fullName: name,
+      email,
+      googleId: providerId,
+      profilePicture: profileImage,
+      authProvider: provider,
+    });
+    user = await User.findById(newUser._id).lean();
   }
 
   if (!user) {
     throw new ApiError(
       httpStatus.INTERNAL_SERVER_ERROR,
-      "Failed to create user",
+      "Failed to create or retrieve user",
     );
   }
 
-  if (user.status !== "ACTIVE") {
-    throw new ApiError(
-      httpStatus.FORBIDDEN,
-      "Your account is inactive or blocked",
-    );
+  if (user.status === "BLOCKED") {
+    throw new ApiError(httpStatus.FORBIDDEN, "Your account has been blocked");
   }
 
-  // Generate JWT token
   const accessToken = jwtHelpers.generateToken(
     {
       id: user._id,
@@ -379,6 +338,5 @@ export const authService = {
   resendOtp,
   verifyForgotPasswordOtp,
   resetPassword,
-  getGoogleAuthUrl,
-  googleCallback,
+  socialLogin,
 };
