@@ -70,8 +70,8 @@ const deleteLent = catchAsync(async (req: Request, res: Response) => {
 const addPayment = catchAsync(async (req: Request, res: Response) => {
   const userId = req.user?.id;
   const { id } = req.params;
-  const { amount } = req.body;
-  const result = await lentService.addPayment(userId, id, amount);
+  const { amount, accountId } = req.body;
+  const result = await lentService.addPayment(userId, id, amount, accountId);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,

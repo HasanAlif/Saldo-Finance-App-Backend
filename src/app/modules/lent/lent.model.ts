@@ -3,6 +3,7 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 export interface ILent extends Document {
   _id: string;
   userId: Types.ObjectId;
+  accountId: Types.ObjectId;
   name: string;
   notes?: string;
   icon?: string;
@@ -23,6 +24,12 @@ const LentSchema = new Schema<ILent>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+      index: true,
+    },
+    accountId: {
+      type: Schema.Types.ObjectId,
+      ref: "Balance",
       required: true,
       index: true,
     },
@@ -77,8 +84,20 @@ const LentSchema = new Schema<ILent>(
   },
 );
 
+LentSchema.pre("validate", function (next) {
+  if (this.accumulatedAmount > this.amount) {
+    this.invalidate(
+      "accumulatedAmount",
+      "Accumulated ammount cannot be bigger than Lent amount.",
+    );
+  }
+
+  next();
+});
+
 // Indexes for better query performance
 LentSchema.index({ userId: 1, status: 1 });
 LentSchema.index({ userId: 1, createdAt: -1 });
+LentSchema.index({ userId: 1, accountId: 1, status: 1 });
 
 export const Lent = mongoose.model<ILent>("Lent", LentSchema);

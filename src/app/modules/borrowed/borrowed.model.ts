@@ -3,6 +3,7 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 export interface IBorrowed extends Document {
   _id: string;
   userId: Types.ObjectId;
+  accountId: Types.ObjectId;
   name: string;
   notes?: string;
   icon?: string;
@@ -23,6 +24,12 @@ const BorrowedSchema = new Schema<IBorrowed>(
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
+      required: true,
+      index: true,
+    },
+    accountId: {
+      type: Schema.Types.ObjectId,
+      ref: "Balance",
       required: true,
       index: true,
     },
@@ -77,8 +84,20 @@ const BorrowedSchema = new Schema<IBorrowed>(
   },
 );
 
+BorrowedSchema.pre("validate", function (next) {
+  if (this.accumulatedAmount > this.amount) {
+    this.invalidate(
+      "accumulatedAmount",
+      "Accumulated ammount cannot be bigger than Borrowed amount.",
+    );
+  }
+
+  next();
+});
+
 // Indexes for better query performance
 BorrowedSchema.index({ userId: 1, status: 1 });
 BorrowedSchema.index({ userId: 1, createdAt: -1 });
+BorrowedSchema.index({ userId: 1, accountId: 1, status: 1 });
 
 export const Borrowed = mongoose.model<IBorrowed>("Borrowed", BorrowedSchema);

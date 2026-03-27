@@ -2,6 +2,9 @@ import { z } from "zod";
 
 const createSchema = z
   .object({
+    accountId: z.string({
+      required_error: "Account ID is required",
+    }),
     name: z
       .string({
         required_error: "Name is required",
@@ -43,6 +46,16 @@ const createSchema = z
       .optional(),
     notes: z.string().max(500, "Notes cannot exceed 500 characters").optional(),
   })
+  .refine(
+    (data) => {
+      const accumulatedAmount = data.accumulatedAmount ?? 0;
+      return accumulatedAmount <= data.amount;
+    },
+    {
+      message: "Accumulated ammount cannot be bigger than Lent amount.",
+      path: ["accumulatedAmount"],
+    },
+  )
   .refine(
     (data) => {
       if (data.lentDate && data.payoffDate) {
@@ -100,6 +113,22 @@ const updateSchema = z
   })
   .refine(
     (data) => {
+      if (
+        typeof data.amount === "number" &&
+        typeof data.accumulatedAmount === "number"
+      ) {
+        return data.accumulatedAmount <= data.amount;
+      }
+
+      return true;
+    },
+    {
+      message: "Accumulated ammount cannot be bigger than Lent amount.",
+      path: ["accumulatedAmount"],
+    },
+  )
+  .refine(
+    (data) => {
       if (data.lentDate && data.payoffDate) {
         return new Date(data.lentDate) <= new Date(data.payoffDate);
       }
@@ -112,6 +141,7 @@ const updateSchema = z
   );
 
 const addPaymentSchema = z.object({
+  accountId: z.string().optional(),
   amount: z
     .number({
       required_error: "Amount is required",
