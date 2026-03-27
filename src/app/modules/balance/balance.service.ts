@@ -4,8 +4,36 @@ import ApiError from "../../../errors/ApiErrors";
 import { User } from "../../models/User.model";
 import { notificationServices } from "../notification/notification.service";
 import { Balance, IBalance } from "./balance.model";
+import { FillForYear, FillForYearTransactionType } from "./FillForYear.model";
 import { Income } from "./income.model";
 import { Spending } from "./spending.model";
+
+const saveFillForYearTemplate = async (
+  userId: string,
+  accountId: string,
+  payload: {
+    name: string;
+    category: string;
+    amount: number;
+  },
+  type: FillForYearTransactionType,
+  session: mongoose.ClientSession,
+) => {
+  await FillForYear.create(
+    [
+      {
+        userId,
+        accountId,
+        name: payload.name,
+        category: payload.category,
+        amount: payload.amount,
+        year: new Date().getUTCFullYear(),
+        type,
+      },
+    ],
+    { session },
+  );
+};
 
 // Create a new Account Balance
 const createAccount = async (
@@ -112,6 +140,7 @@ const addIncomeToAccount = async (
 ) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+  const shouldFillForAllYear = Boolean(payload.fillForAllYear);
 
   try {
     // Verify account exists and belongs to user
@@ -136,14 +165,14 @@ const addIncomeToAccount = async (
           currency: payload.currency,
           date: payload.date,
           time: payload.time,
-          fillForAllYear: payload.fillForAllYear,
+          fillForAllYear: shouldFillForAllYear,
         },
       ],
       { session },
     );
 
     // Update account balance
-    const updatedAccount = await Balance.findByIdAndUpdate(
+    await Balance.findByIdAndUpdate(
       accountId,
       {
         $inc: { amount: payload.amount },
@@ -151,6 +180,20 @@ const addIncomeToAccount = async (
       },
       { new: true, session },
     ).lean();
+
+    if (shouldFillForAllYear) {
+      await saveFillForYearTemplate(
+        userId,
+        accountId,
+        {
+          name: payload.name,
+          category: payload.category,
+          amount: payload.amount,
+        },
+        FillForYearTransactionType.INCOME,
+        session,
+      );
+    }
 
     await session.commitTransaction();
 
@@ -186,10 +229,12 @@ const addSpendingToAccount = async (
     currency: string;
     date: Date;
     time: string;
+    fillForAllYear: boolean;
   },
 ) => {
   const session = await mongoose.startSession();
   session.startTransaction();
+  const shouldFillForAllYear = Boolean(payload.fillForAllYear);
 
   try {
     // Verify account exists and belongs to user
@@ -222,13 +267,14 @@ const addSpendingToAccount = async (
           currency: payload.currency,
           date: payload.date,
           time: payload.time,
+          fillForAllYear: shouldFillForAllYear,
         },
       ],
       { session },
     );
 
     // Update account balance (decrease)
-    const updatedAccount = await Balance.findByIdAndUpdate(
+    await Balance.findByIdAndUpdate(
       accountId,
       {
         $inc: { amount: -payload.amount },
@@ -236,6 +282,20 @@ const addSpendingToAccount = async (
       },
       { new: true, session },
     ).lean();
+
+    if (shouldFillForAllYear) {
+      await saveFillForYearTemplate(
+        userId,
+        accountId,
+        {
+          name: payload.name,
+          category: payload.category,
+          amount: payload.amount,
+        },
+        FillForYearTransactionType.SPENDING,
+        session,
+      );
+    }
 
     await session.commitTransaction();
 

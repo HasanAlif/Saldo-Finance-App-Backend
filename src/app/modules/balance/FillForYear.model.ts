@@ -1,21 +1,26 @@
 import { Schema, model, Types } from "mongoose";
 
-export interface ISpending {
+export enum FillForYearTransactionType {
+  INCOME = "INCOME",
+  SPENDING = "SPENDING",
+}
+
+export interface IFillForYear {
   _id?: Types.ObjectId;
   userId: Types.ObjectId;
   accountId: Types.ObjectId;
   name: string;
   category: string;
   amount: number;
-  currency?: string;
-  date: Date;
-  time: string;
-  fillForAllYear: boolean;
+  year: number;
+  type: FillForYearTransactionType;
+  processedCycles: string[];
+  lastProcessedAt?: Date;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-const SpendingSchema = new Schema<ISpending>(
+const FillForYearSchema = new Schema<IFillForYear>(
   {
     userId: {
       type: Schema.Types.ObjectId,
@@ -45,22 +50,23 @@ const SpendingSchema = new Schema<ISpending>(
       required: true,
       min: 0,
     },
-    currency: {
-      type: String,
-      default: "EUR",
-    },
-    date: {
-      type: Date,
+    year: {
+      type: Number,
       required: true,
       index: true,
     },
-    time: {
+    type: {
       type: String,
+      enum: Object.values(FillForYearTransactionType),
       required: true,
+      index: true,
     },
-    fillForAllYear: {
-      type: Boolean,
-      default: false,
+    processedCycles: {
+      type: [String],
+      default: [],
+    },
+    lastProcessedAt: {
+      type: Date,
     },
   },
   {
@@ -68,8 +74,10 @@ const SpendingSchema = new Schema<ISpending>(
   },
 );
 
-// Compound index for efficient queries
-SpendingSchema.index({ userId: 1, date: -1 });
-SpendingSchema.index({ accountId: 1, date: -1 });
+FillForYearSchema.index({ year: 1, userId: 1, type: 1 });
+FillForYearSchema.index({ userId: 1, year: 1, accountId: 1, category: 1 });
 
-export const Spending = model<ISpending>("Spending", SpendingSchema);
+export const FillForYear = model<IFillForYear>(
+  "FillForYear",
+  FillForYearSchema,
+);
