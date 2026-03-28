@@ -2,6 +2,7 @@ import { ContentType, AppContent } from "./appContent.model";
 import { User, UserRole } from "../../models";
 import { Payment, PaymentStatus } from "../payment/payment.model";
 import { paginationHelper } from "../../../helpars/paginationHelper";
+import { id } from "zod/v4/locales";
 
 const getContentTypeName = (type: ContentType): string => {
   const typeNames: Record<ContentType, string> = {
@@ -457,6 +458,7 @@ const searchUsers = async (
 
   const formattedUsers = users.map(
     (user: {
+      _id: string;
       fullName?: string;
       email?: string;
       profilePicture?: string;
@@ -465,6 +467,7 @@ const searchUsers = async (
       premiumPlan?: string;
       status?: string;
     }) => ({
+      id: user._id,
       name: user.fullName || null,
       email: user.email || null,
       profilePicture: user.profilePicture || null,
