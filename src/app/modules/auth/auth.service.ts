@@ -22,10 +22,6 @@ const loginUser = async (payload: {
     throw new ApiError(httpStatus.NOT_FOUND, "Invalid email or password");
   }
 
-  if (userData.status === "BLOCKED") {
-    throw new ApiError(httpStatus.FORBIDDEN, "Your account has been blocked");
-  }
-
   // Check if user is Google-only (no password)
   if (!userData.password) {
     throw new ApiError(
@@ -304,10 +300,6 @@ const socialLogin = async (payload: {
       httpStatus.INTERNAL_SERVER_ERROR,
       "Failed to create or retrieve user",
     );
-  }
-
-  if (user.status === "BLOCKED") {
-    throw new ApiError(httpStatus.FORBIDDEN, "Your account has been blocked");
   }
 
   const accessToken = jwtHelpers.generateToken(
