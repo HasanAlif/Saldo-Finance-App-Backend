@@ -184,14 +184,55 @@ const getAllUsers = async (
     query.status = status;
   }
 
-  const paginationData = paginationHelper.calculatePagination({
-    page,
-    limit,
-  });
-
   const total = await User.countDocuments(query);
 
-  const users = await User.find(query, {
+  // Check if pagination params are provided
+  const hasPagination = page !== undefined || limit !== undefined;
+
+  let users;
+  if (hasPagination) {
+    const paginationData = paginationHelper.calculatePagination({
+      page,
+      limit,
+    });
+
+    users = await User.find(query, {
+      fullName: 1,
+      email: 1,
+      profilePicture: 1,
+      mobileNumber: 1,
+      country: 1,
+      premiumPlan: 1,
+      status: 1,
+    })
+      .sort({ createdAt: -1 })
+      .skip(paginationData.skip)
+      .limit(paginationData.limit)
+      .lean();
+
+    const formattedUsers = users.map((user) => ({
+      name: user.fullName || null,
+      email: user.email || null,
+      profilePicture: user.profilePicture || null,
+      phoneNumber: user.mobileNumber || null,
+      location: user.country || null,
+      premiumPlan: user.premiumPlan || null,
+      status: user.status || null,
+    }));
+
+    return {
+      meta: {
+        page: paginationData.page,
+        limit: paginationData.limit,
+        total,
+        totalPages: Math.ceil(total / paginationData.limit),
+      },
+      data: formattedUsers,
+    };
+  }
+
+  // No pagination - return all data
+  users = await User.find(query, {
     fullName: 1,
     email: 1,
     profilePicture: 1,
@@ -201,8 +242,6 @@ const getAllUsers = async (
     status: 1,
   })
     .sort({ createdAt: -1 })
-    .skip(paginationData.skip)
-    .limit(paginationData.limit)
     .lean();
 
   const formattedUsers = users.map((user) => ({
@@ -217,10 +256,7 @@ const getAllUsers = async (
 
   return {
     meta: {
-      page: paginationData.page,
-      limit: paginationData.limit,
       total,
-      totalPages: Math.ceil(total / paginationData.limit),
     },
     data: formattedUsers,
   };
