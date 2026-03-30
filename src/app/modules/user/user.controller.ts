@@ -8,14 +8,27 @@ import { userService } from "./user.service";
 
 // Register new user
 const createUser = catchAsync(async (req: Request, res: Response) => {
-  const { fullName, email, mobileNumber, password, fcmToken, timezone, countryCode } =
-    req.body;
+  const {
+    fullName,
+    email,
+    mobileNumber,
+    password,
+    fcmToken,
+    deviceId,
+    deviceType,
+    deviceName,
+    timezone,
+    countryCode,
+  } = req.body;
   const result = await userService.createUserIntoDb({
     fullName,
     email,
     mobileNumber,
     password,
     fcmToken,
+    deviceId,
+    deviceType,
+    deviceName,
     timezone,
     countryCode,
   });

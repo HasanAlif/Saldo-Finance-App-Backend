@@ -73,6 +73,8 @@ const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
     return true;
   });
 
+  // Mark fcmTokens as modified to ensure Mongoose saves the changes
+  user.markModified("fcmTokens");
   await user.save();
 
   return {
