@@ -104,7 +104,7 @@ const getWeekDateRange = (
 // Core notification functions
 // ==========================================
 
-// Create and send notification to a single user
+// Create and send notification to a single user (all their devices)
 const sendNotification = async (payload: CreateNotificationPayload) => {
   const { userId, title, body, type = NotificationType.NORMAL, data } = payload;
 
@@ -117,28 +117,56 @@ const sendNotification = async (payload: CreateNotificationPayload) => {
     data,
   });
 
-  // Get user's FCM token
-  const user = await User.findById(userId).select("fcmToken").lean();
+  // Get user's FCM tokens (all devices)
+  const user = await User.findById(userId).select("+fcmTokens").lean();
 
-  // Send push notification if user has FCM token
-  if (user?.fcmToken) {
-    try {
-      // Ensure all data values are strings for FCM
-      const fcmData: Record<string, string> = {
-        notificationId: notification._id.toString(),
-        type,
-      };
-      if (data) {
-        for (const [k, v] of Object.entries(data)) {
-          fcmData[k] = String(v);
-        }
+  // Send push notification to all devices
+  if (user?.fcmTokens?.length) {
+    const tokens = user.fcmTokens.map((t) => t.token);
+
+    // Ensure all data values are strings for FCM
+    const fcmData: Record<string, string> = {
+      notificationId: notification._id.toString(),
+      type,
+    };
+    if (data) {
+      for (const [k, v] of Object.entries(data)) {
+        fcmData[k] = String(v);
       }
+    }
 
-      await admin.messaging().send({
-        token: user.fcmToken,
+    try {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens,
         notification: { title, body },
         data: fcmData,
       });
+
+      if (response.failureCount > 0) {
+        const invalidTokens: string[] = [];
+        response.responses.forEach((res, idx) => {
+          if (!res.success) {
+            const errorCode = res.error?.code;
+            if (
+              errorCode === "messaging/invalid-registration-token" ||
+              errorCode === "messaging/registration-token-not-registered"
+            ) {
+              invalidTokens.push(tokens[idx]);
+            }
+          }
+        });
+
+        // Remove invalid tokens from user's fcmTokens array
+        if (invalidTokens.length) {
+          await User.updateOne(
+            { _id: userId },
+            { $pull: { fcmTokens: { token: { $in: invalidTokens } } } },
+          );
+          console.log(
+            `[FCM] Removed ${invalidTokens.length} invalid token(s) for user ${userId}`,
+          );
+        }
+      }
     } catch (error: any) {
       console.error("Push notification failed:", error.message);
     }
@@ -170,16 +198,31 @@ const sendBulkNotification = async (
     targetIds.map((userId) => ({ userId, title, body, type, data })),
   );
 
-  // Get FCM tokens for all users
+  // Get FCM tokens for all users (users with non-empty fcmTokens array)
   const users = await User.find({
     _id: { $in: targetIds },
-    fcmToken: { $exists: true, $ne: null },
+    fcmTokens: { $exists: true, $not: { $size: 0 } },
   })
-    .select("_id fcmToken")
+    .select("+fcmTokens _id")
     .lean();
 
   if (!users.length) {
-    return { successCount: notifications.length, failureCount: 0, pushSent: 0 };
+    return { successCount: notifications.length, pushSent: 0, pushFailed: 0 };
+  }
+
+  // Flatten all tokens with user mapping
+  const tokenUserMap: Map<string, string> = new Map();
+  const allTokens: string[] = [];
+
+  users.forEach((user) => {
+    (user.fcmTokens || []).forEach((t) => {
+      tokenUserMap.set(t.token, user._id.toString());
+      allTokens.push(t.token);
+    });
+  });
+
+  if (!allTokens.length) {
+    return { successCount: notifications.length, pushSent: 0, pushFailed: 0 };
   }
 
   // Ensure all data values are strings for FCM
@@ -190,26 +233,67 @@ const sendBulkNotification = async (
     }
   }
 
-  const tokens = users.map((u) => u.fcmToken!);
-
   try {
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens,
-      notification: { title, body },
-      data: fcmData,
-    });
+    // FCM allows max 500 tokens per batch
+    const BATCH_SIZE = 500;
+    let totalSuccess = 0;
+    let totalFailure = 0;
+    const invalidTokensToRemove: Array<{ userId: string; token: string }> = [];
+
+    for (let i = 0; i < allTokens.length; i += BATCH_SIZE) {
+      const batchTokens = allTokens.slice(i, i + BATCH_SIZE);
+
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: batchTokens,
+        notification: { title, body },
+        data: fcmData,
+      });
+
+      totalSuccess += response.successCount;
+      totalFailure += response.failureCount;
+
+      response.responses.forEach((res, idx) => {
+        if (!res.success) {
+          const errorCode = res.error?.code;
+          if (
+            errorCode === "messaging/invalid-registration-token" ||
+            errorCode === "messaging/registration-token-not-registered"
+          ) {
+            const token = batchTokens[idx];
+            const userId = tokenUserMap.get(token);
+            if (userId) {
+              invalidTokensToRemove.push({ userId, token });
+            }
+          }
+        }
+      });
+    }
+
+    // Bulk remove invalid tokens
+    if (invalidTokensToRemove.length) {
+      const bulkOps = invalidTokensToRemove.map(({ userId, token }) => ({
+        updateOne: {
+          filter: { _id: userId },
+          update: { $pull: { fcmTokens: { token } } },
+        },
+      }));
+      await User.bulkWrite(bulkOps);
+      console.log(
+        `[FCM] Removed ${invalidTokensToRemove.length} invalid token(s) from bulk send`,
+      );
+    }
 
     return {
       successCount: notifications.length,
-      pushSent: response.successCount,
-      pushFailed: response.failureCount,
+      pushSent: totalSuccess,
+      pushFailed: totalFailure,
     };
   } catch (error: any) {
     console.error("Bulk push notification failed:", error.message);
     return {
       successCount: notifications.length,
       pushSent: 0,
-      pushFailed: tokens.length,
+      pushFailed: allTokens.length,
     };
   }
 };

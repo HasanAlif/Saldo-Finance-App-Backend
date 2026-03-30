@@ -14,15 +14,17 @@ export const sendPushNotification = async (
   fcmToken: string,
   title: string,
   body: string,
-  data?: Record<string, any>
+  data?: Record<string, any>,
 ): Promise<string | null> => {
   try {
     const response = await admin.messaging().send({
       token: fcmToken,
       notification: { title, body },
-      data: data ? Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, String(v)])
-      ) : undefined,
+      data: data
+        ? Object.fromEntries(
+            Object.entries(data).map(([k, v]) => [k, String(v)]),
+          )
+        : undefined,
     });
     return response;
   } catch (error: any) {
@@ -31,9 +33,9 @@ export const sendPushNotification = async (
   }
 };
 
-// Create notification and send push
+// Create notification and send push (to all user's devices)
 export const createAndSendNotification = async (
-  payload: NotificationPayload
+  payload: NotificationPayload,
 ): Promise<void> => {
   const { userId, title, body, type = NotificationType.NORMAL, data } = payload;
 
@@ -46,46 +48,125 @@ export const createAndSendNotification = async (
     data,
   });
 
-  // Get user FCM token and send push
-  const user = await User.findById(userId).select("fcmToken").lean();
-  
-  if (user?.fcmToken) {
-    await sendPushNotification(user.fcmToken, title, body, {
-      notificationId: notification._id.toString(),
-      type,
-      ...data,
-    });
+  // Get user FCM tokens and send push to all devices
+  const user = await User.findById(userId).select("+fcmTokens").lean();
+
+  if (user?.fcmTokens?.length) {
+    const tokens = user.fcmTokens.map((t) => t.token);
+    try {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        data: {
+          notificationId: notification._id.toString(),
+          type,
+          ...(data
+            ? Object.fromEntries(
+                Object.entries(data).map(([k, v]) => [k, String(v)]),
+              )
+            : {}),
+        },
+      });
+
+      if (response.failureCount > 0) {
+        const invalidTokens: string[] = [];
+        response.responses.forEach((res, idx) => {
+          if (!res.success) {
+            const errorCode = res.error?.code;
+            if (
+              errorCode === "messaging/invalid-registration-token" ||
+              errorCode === "messaging/registration-token-not-registered"
+            ) {
+              invalidTokens.push(tokens[idx]);
+            }
+          }
+        });
+        if (invalidTokens.length) {
+          await User.updateOne(
+            { _id: userId },
+            { $pull: { fcmTokens: { token: { $in: invalidTokens } } } },
+          );
+        }
+      }
+    } catch (error: any) {
+      console.error("Push notification error:", error.message);
+    }
   }
 };
 
-// Send notification to multiple users
+// Send notification to multiple users (all their devices)
 export const sendBulkPushNotification = async (
   userIds: string[],
   title: string,
   body: string,
   type: NotificationType = NotificationType.NORMAL,
-  data?: Record<string, any>
+  data?: Record<string, any>,
 ): Promise<{ sent: number; failed: number }> => {
   if (!userIds.length) return { sent: 0, failed: 0 };
 
   // Get all user FCM tokens
   const users = await User.find({
     _id: { $in: userIds },
-    fcmToken: { $exists: true, $ne: null },
-  }).select("fcmToken").lean();
+    fcmTokens: { $exists: true, $not: { $size: 0 } },
+  })
+    .select("+fcmTokens _id")
+    .lean();
 
   if (!users.length) return { sent: 0, failed: 0 };
 
-  const tokens = users.map((u) => u.fcmToken!);
+  // Flatten all tokens with user mapping
+  const tokenUserMap: Map<string, string> = new Map();
+  const allTokens: string[] = [];
+
+  users.forEach((user) => {
+    (user.fcmTokens || []).forEach((t) => {
+      tokenUserMap.set(t.token, user._id.toString());
+      allTokens.push(t.token);
+    });
+  });
+
+  if (!allTokens.length) return { sent: 0, failed: 0 };
 
   try {
     const response = await admin.messaging().sendEachForMulticast({
-      tokens,
+      tokens: allTokens,
       notification: { title, body },
-      data: data ? Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, String(v)])
-      ) : undefined,
+      data: data
+        ? Object.fromEntries(
+            Object.entries(data).map(([k, v]) => [k, String(v)]),
+          )
+        : undefined,
     });
+
+    if (response.failureCount > 0) {
+      const invalidTokensToRemove: Array<{ userId: string; token: string }> =
+        [];
+      response.responses.forEach((res, idx) => {
+        if (!res.success) {
+          const errorCode = res.error?.code;
+          if (
+            errorCode === "messaging/invalid-registration-token" ||
+            errorCode === "messaging/registration-token-not-registered"
+          ) {
+            const token = allTokens[idx];
+            const userId = tokenUserMap.get(token);
+            if (userId) {
+              invalidTokensToRemove.push({ userId, token });
+            }
+          }
+        }
+      });
+
+      if (invalidTokensToRemove.length) {
+        const bulkOps = invalidTokensToRemove.map(({ userId, token }) => ({
+          updateOne: {
+            filter: { _id: userId },
+            update: { $pull: { fcmTokens: { token } } },
+          },
+        }));
+        await User.bulkWrite(bulkOps);
+      }
+    }
 
     return {
       sent: response.successCount,
@@ -93,6 +174,6 @@ export const sendBulkPushNotification = async (
     };
   } catch (error: any) {
     console.error("Bulk push error:", error.message);
-    return { sent: 0, failed: tokens.length };
+    return { sent: 0, failed: allTokens.length };
   }
 };

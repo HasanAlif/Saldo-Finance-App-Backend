@@ -2,6 +2,7 @@ import express from "express";
 import { authRoutes } from "../modules/auth/auth.routes";
 import { BalanceRoutes } from "../modules/balance/balance.routes";
 import { budgetRoutes } from "../modules/budget/budget.routes";
+import { fcmTokenRoutes } from "../modules/fcm-token/fcm-token.routes";
 import { notificationsRoute } from "../modules/notification/notification.routes";
 import { userRoutes } from "../modules/user/user.route";
 import { profileRoutes } from "../modules/profile/profile.routes";
@@ -30,6 +31,10 @@ const moduleRoutes = [
   {
     path: "/notifications",
     route: notificationsRoute,
+  },
+  {
+    path: "/fcm-tokens",
+    route: fcmTokenRoutes,
   },
   {
     path: "/balances",

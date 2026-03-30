@@ -17,7 +17,7 @@ const scheduleDailyReminder = () => {
       // Get all distinct timezones from active users with FCM tokens
       const timezones: string[] = await User.distinct("timezone", {
         status: "ACTIVE",
-        fcmToken: { $exists: true, $ne: null },
+        fcmTokens: { $exists: true, $not: { $size: 0 } },
       });
 
       if (!timezones.length) return;
@@ -48,7 +48,7 @@ const scheduleDailyReminder = () => {
         const users = await User.find({
           timezone: tz,
           status: "ACTIVE",
-          fcmToken: { $exists: true, $ne: null },
+          fcmTokens: { $exists: true, $not: { $size: 0 } },
         })
           .select("_id")
           .lean();
@@ -146,7 +146,7 @@ const scheduleWeeklyReport = () => {
       // Get all active users with FCM tokens
       const users = await User.find({
         status: "ACTIVE",
-        fcmToken: { $exists: true, $ne: null },
+        fcmTokens: { $exists: true, $not: { $size: 0 } },
       })
         .select("_id")
         .lean();
@@ -246,7 +246,7 @@ const scheduleMonthlyReport = () => {
       // Find users whose new month cycle starts today
       const users = await User.find({
         status: "ACTIVE",
-        fcmToken: { $exists: true, $ne: null },
+        fcmTokens: { $exists: true, $not: { $size: 0 } },
         monthStartDate: currentDay,
       })
         .select("_id monthStartDate")
@@ -361,10 +361,48 @@ const scheduleMonthlyReport = () => {
 };
 
 // ==========================================
+// Stale FCM Token Cleanup - Runs daily at 03:00 UTC
+// Removes tokens with no activity for 45+ days
+// This handles abandoned sessions (app uninstalled without logout, etc.)
+// ==========================================
+const scheduleStaleTokenCleanup = () => {
+  cron.schedule("0 3 * * *", async () => {
+    try {
+      const STALE_DAYS = 45;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - STALE_DAYS);
+
+      // Find and remove stale tokens
+      const result = await User.updateMany(
+        {
+          fcmTokens: {
+            $elemMatch: { lastActiveAt: { $lt: cutoffDate } },
+          },
+        },
+        {
+          $pull: {
+            fcmTokens: { lastActiveAt: { $lt: cutoffDate } },
+          },
+        },
+      );
+
+      console.log(
+        `[Cron] Stale token cleanup: ${result.modifiedCount} user(s) updated`,
+      );
+    } catch (error) {
+      console.error("[Cron] Stale token cleanup error:", error);
+    }
+  });
+
+  console.log("[Cron] Stale FCM token cleanup scheduled (daily at 03:00 UTC)");
+};
+
+// ==========================================
 // Register all notification cron jobs
 // ==========================================
 export const scheduleNotificationCrons = () => {
   scheduleDailyReminder();
   scheduleWeeklyReport();
   scheduleMonthlyReport();
+  scheduleStaleTokenCleanup();
 };

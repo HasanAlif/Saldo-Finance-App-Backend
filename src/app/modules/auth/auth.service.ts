@@ -6,13 +6,17 @@ import ApiError from "../../../errors/ApiErrors";
 import { jwtHelpers } from "../../../helpars/jwtHelpers";
 import emailSender from "../../../shared/emailSender";
 import { PASSWORD_RESET_TEMPLATE } from "../../../utils/Template";
-import { AuthProvider, User } from "../../models";
+import { AuthProvider, User, DeviceType } from "../../models";
+import { fcmTokenService } from "../fcm-token/fcm-token.service";
 
 // User login
 const loginUser = async (payload: {
   email: string;
   password: string;
   fcmToken?: string;
+  deviceId?: string;
+  deviceType?: DeviceType;
+  deviceName?: string;
 }) => {
   const userData = await User.findOne({ email: payload.email })
     .select("+password")
@@ -38,9 +42,14 @@ const loginUser = async (payload: {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid email or password");
   }
 
-  // Update FCM token if provided
-  if (payload.fcmToken) {
-    await User.findByIdAndUpdate(userData._id, { fcmToken: payload.fcmToken });
+  // Register FCM token if provided with device info
+  if (payload.fcmToken && payload.deviceId && payload.deviceType) {
+    await fcmTokenService.registerToken(userData._id.toString(), {
+      fcmToken: payload.fcmToken,
+      deviceId: payload.deviceId,
+      deviceType: payload.deviceType,
+      deviceName: payload.deviceName,
+    });
   }
 
   const accessToken = jwtHelpers.generateToken(
@@ -261,8 +270,22 @@ const socialLogin = async (payload: {
   profileImage?: string;
   provider: AuthProvider;
   providerId: string;
+  fcmToken?: string;
+  deviceId?: string;
+  deviceType?: DeviceType;
+  deviceName?: string;
 }) => {
-  const { email, name, profileImage, provider, providerId } = payload;
+  const {
+    email,
+    name,
+    profileImage,
+    provider,
+    providerId,
+    fcmToken,
+    deviceId,
+    deviceType,
+    deviceName,
+  } = payload;
 
   let user = await User.findOne({ email }).lean();
 
@@ -300,6 +323,16 @@ const socialLogin = async (payload: {
       httpStatus.INTERNAL_SERVER_ERROR,
       "Failed to create or retrieve user",
     );
+  }
+
+  // Register FCM token if provided with device info
+  if (fcmToken && deviceId && deviceType) {
+    await fcmTokenService.registerToken(user._id.toString(), {
+      fcmToken,
+      deviceId,
+      deviceType,
+      deviceName,
+    });
   }
 
   const accessToken = jwtHelpers.generateToken(

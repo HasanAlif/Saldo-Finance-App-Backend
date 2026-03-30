@@ -31,6 +31,21 @@ export enum PremiumPlan {
   LIFETIME = "LIFETIME",
 }
 
+export enum DeviceType {
+  IOS = "ios",
+  ANDROID = "android",
+  WEB = "web",
+}
+
+export interface IFcmToken {
+  token: string;
+  deviceId: string;
+  deviceType: DeviceType;
+  deviceName?: string;
+  lastActiveAt: Date;
+  createdAt: Date;
+}
+
 export interface IUser extends Document {
   _id: string;
   fullName: string;
@@ -46,7 +61,7 @@ export interface IUser extends Document {
   premiumPlanExpiry?: Date | null;
   isEnjoyedTrial: boolean;
   isDeleted: boolean;
-  fcmToken?: string;
+  fcmTokens: IFcmToken[];
   countryCode?: string;
   country?: string;
   currency?: string;
@@ -117,8 +132,23 @@ const UserSchema = new Schema<IUser>(
       type: Boolean,
       default: false,
     },
-    fcmToken: {
-      type: String,
+    fcmTokens: {
+      type: [
+        {
+          token: { type: String, required: true },
+          deviceId: { type: String, required: true },
+          deviceType: {
+            type: String,
+            enum: Object.values(DeviceType),
+            required: true,
+          },
+          deviceName: { type: String },
+          lastActiveAt: { type: Date, default: Date.now },
+          createdAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+      select: false,
     },
     countryCode: {
       type: String,
@@ -162,5 +192,8 @@ UserSchema.index({ status: 1 });
 UserSchema.index({ mobileNumber: 1 });
 UserSchema.index({ premiumPlan: 1, premiumPlanExpiry: 1 });
 UserSchema.index({ timezone: 1, status: 1 });
+UserSchema.index({ "fcmTokens.deviceId": 1 });
+UserSchema.index({ "fcmTokens.token": 1 });
+UserSchema.index({ "fcmTokens.lastActiveAt": 1 });
 
 export const User = mongoose.model<IUser>("User", UserSchema);

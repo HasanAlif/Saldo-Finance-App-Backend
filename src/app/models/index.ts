@@ -6,6 +6,8 @@ export {
   NotificationType,
   AuthProvider,
   PremiumPlan,
+  DeviceType,
+  IFcmToken,
 } from "./User.model";
 
 export { Notification, INotification } from "./Notification.model";

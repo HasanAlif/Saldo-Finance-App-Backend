@@ -12,6 +12,15 @@ const CreateUserValidationSchema = z
     confirmPassword: z.string().min(8),
     mobileNumber: z.string().optional(),
     fcmToken: z.string().optional(),
+    deviceId: z.string().uuid("Device ID must be a valid UUID").optional(),
+    deviceType: z
+      .enum(["ios", "android", "web"], {
+        errorMap: () => ({
+          message: "Device type must be ios, android, or web",
+        }),
+      })
+      .optional(),
+    deviceName: z.string().max(100).optional(),
     timezone: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -24,6 +33,13 @@ const UserLoginValidationSchema = z.object({
   email: z.string().email("Please provide a valid email"),
   password: z.string().min(1, "Password is required"),
   fcmToken: z.string().optional(),
+  deviceId: z.string().uuid("Device ID must be a valid UUID").optional(),
+  deviceType: z
+    .enum(["ios", "android", "web"], {
+      errorMap: () => ({ message: "Device type must be ios, android, or web" }),
+    })
+    .optional(),
+  deviceName: z.string().max(100).optional(),
 });
 
 // Profile update validation

@@ -1,4 +1,4 @@
-import { User, IUser } from "../../models";
+import { User, IUser, DeviceType } from "../../models";
 import * as bcrypt from "bcrypt";
 import { Request } from "express";
 import httpStatus from "http-status";
@@ -10,6 +10,7 @@ import { paginationHelper } from "../../../helpars/paginationHelper";
 import { IPaginationOptions } from "../../../interfaces/paginations";
 import { userSearchAbleFields } from "./user.costant";
 import { IUserFilterRequest } from "./user.interface";
+import { fcmTokenService } from "../fcm-token/fcm-token.service";
 
 // Create a new user - Simple registration (fullName, email, mobileNumber, password)
 const createUserIntoDb = async (payload: {
@@ -18,6 +19,9 @@ const createUserIntoDb = async (payload: {
   mobileNumber: string;
   password: string;
   fcmToken?: string;
+  deviceId?: string;
+  deviceType?: DeviceType;
+  deviceName?: string;
   timezone?: string;
   countryCode?: string;
 }) => {
@@ -54,9 +58,18 @@ const createUserIntoDb = async (payload: {
     mobileNumber: payload.mobileNumber,
     countryCode: payload.countryCode,
     password: hashedPassword,
-    fcmToken: payload.fcmToken,
     timezone: payload.timezone,
   });
+
+  // Register FCM token if provided with device info
+  if (payload.fcmToken && payload.deviceId && payload.deviceType) {
+    await fcmTokenService.registerToken(createdUser._id.toString(), {
+      fcmToken: payload.fcmToken,
+      deviceId: payload.deviceId,
+      deviceType: payload.deviceType,
+      deviceName: payload.deviceName,
+    });
+  }
 
   // Generate token
   const token = jwtHelpers.generateToken(
