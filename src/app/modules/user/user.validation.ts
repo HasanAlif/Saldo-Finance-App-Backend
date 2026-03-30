@@ -12,7 +12,7 @@ const CreateUserValidationSchema = z
     confirmPassword: z.string().min(8),
     mobileNumber: z.string().optional(),
     fcmToken: z.string().optional(),
-    deviceId: z.string().uuid("Device ID must be a valid UUID").optional(),
+    deviceId: z.string().optional(),
     deviceType: z
       .enum(["ios", "android", "web"], {
         errorMap: () => ({
@@ -33,7 +33,7 @@ const UserLoginValidationSchema = z.object({
   email: z.string().email("Please provide a valid email"),
   password: z.string().min(1, "Password is required"),
   fcmToken: z.string().optional(),
-  deviceId: z.string().uuid("Device ID must be a valid UUID").optional(),
+  deviceId: z.string().optional(),
   deviceType: z
     .enum(["ios", "android", "web"], {
       errorMap: () => ({ message: "Device type must be ios, android, or web" }),

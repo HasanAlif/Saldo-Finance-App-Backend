@@ -38,7 +38,7 @@ const socialLoginValidationSchema = z.object({
   provider: z.nativeEnum(AuthProvider),
   providerId: z.string().min(1, "Provider ID is required"),
   fcmToken: z.string().optional(),
-  deviceId: z.string().uuid("Device ID must be a valid UUID").optional(),
+  deviceId: z.string().optional(),
   deviceType: z
     .enum(["ios", "android", "web"], {
       errorMap: () => ({ message: "Device type must be ios, android, or web" }),

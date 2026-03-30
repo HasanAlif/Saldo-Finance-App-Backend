@@ -1,6 +1,7 @@
 import httpStatus from "http-status";
 import ApiError from "../../../errors/ApiErrors";
 import { User, DeviceType, IFcmToken } from "../../models";
+import { generateDeviceUUID } from "../../../utils/generateDeviceUUID";
 
 const MAX_DEVICES_PER_USER = 10;
 
@@ -13,7 +14,10 @@ interface RegisterTokenPayload {
 
 // Register or update FCM token for a device
 const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
-  const { fcmToken, deviceId, deviceType, deviceName } = payload;
+  const { fcmToken, deviceId: rawDeviceId, deviceType, deviceName } = payload;
+
+  // Convert device ID to UUID for consistent storage
+  const deviceId = generateDeviceUUID(rawDeviceId);
 
   const user = await User.findById(userId).select("+fcmTokens");
   if (!user) {
@@ -78,7 +82,10 @@ const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
 };
 
 // Delete token for specific device (called on logout)
-const deleteToken = async (userId: string, deviceId: string) => {
+const deleteToken = async (userId: string, rawDeviceId: string) => {
+  // Convert device ID to UUID for consistent lookup
+  const deviceId = generateDeviceUUID(rawDeviceId);
+
   const result = await User.findByIdAndUpdate(
     userId,
     { $pull: { fcmTokens: { deviceId } } },

@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const registerTokenSchema = z.object({
   fcmToken: z.string().min(1, "FCM token is required"),
-  deviceId: z.string().uuid("Device ID must be a valid UUID"),
+  deviceId: z.string().min(1, "Device ID is required"),
   deviceType: z.enum(["ios", "android", "web"], {
     errorMap: () => ({ message: "Device type must be ios, android, or web" }),
   }),
@@ -10,7 +10,7 @@ const registerTokenSchema = z.object({
 });
 
 const deleteTokenSchema = z.object({
-  deviceId: z.string().uuid("Device ID must be a valid UUID"),
+  deviceId: z.string().min(1, "Device ID is required"),
 });
 
 export const fcmTokenValidation = {
