@@ -8,6 +8,15 @@ import { FillForYear, FillForYearTransactionType } from "./FillForYear.model";
 import { Income } from "./income.model";
 import { Spending } from "./spending.model";
 
+const logAsyncNotificationError = (
+  task: string,
+  userId: string,
+  error: unknown,
+) => {
+  const message = error instanceof Error ? error.message : "Unknown error";
+  console.warn(`[Notification] ${task} failed for user ${userId}: ${message}`);
+};
+
 const saveFillForYearTemplate = async (
   userId: string,
   accountId: string,
@@ -206,7 +215,9 @@ const addIncomeToAccount = async (
         payload.amount,
         payload.currency,
       )
-      .catch(() => {});
+      .catch((error) =>
+        logAsyncNotificationError("sendTransactionNotification", userId, error),
+      );
 
     return {
       income: income[0],
@@ -308,11 +319,15 @@ const addSpendingToAccount = async (
         payload.amount,
         payload.currency,
       )
-      .catch(() => {});
+      .catch((error) =>
+        logAsyncNotificationError("sendTransactionNotification", userId, error),
+      );
 
     notificationServices
       .checkBudgetAlerts(userId, payload.category)
-      .catch(() => {});
+      .catch((error) =>
+        logAsyncNotificationError("checkBudgetAlerts", userId, error),
+      );
 
     return {
       spending: spending[0],

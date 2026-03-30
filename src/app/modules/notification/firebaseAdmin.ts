@@ -1,7 +1,12 @@
 import admin from "firebase-admin";
 
+let firebaseReady = false;
+let firebaseInitError: string | null = null;
+
 const initializeFirebase = () => {
   if (admin.apps.length > 0) {
+    firebaseReady = true;
+    firebaseInitError = null;
     return admin;
   }
 
@@ -10,7 +15,10 @@ const initializeFirebase = () => {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
-    console.warn("Firebase credentials not configured. Push notifications disabled.");
+    firebaseReady = false;
+    firebaseInitError =
+      "Firebase credentials not configured. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.";
+    console.warn(firebaseInitError);
     return admin;
   }
 
@@ -22,12 +30,20 @@ const initializeFirebase = () => {
         privateKey,
       }),
     });
+    firebaseReady = true;
+    firebaseInitError = null;
     console.log("Firebase Admin SDK initialized successfully");
   } catch (error: any) {
+    firebaseReady = false;
+    firebaseInitError = error.message;
     console.error("Firebase initialization error:", error.message);
   }
 
   return admin;
 };
+
+export const isFirebaseReady = () => firebaseReady && admin.apps.length > 0;
+
+export const getFirebaseInitError = () => firebaseInitError;
 
 export default initializeFirebase();

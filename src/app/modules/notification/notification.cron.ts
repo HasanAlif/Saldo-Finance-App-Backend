@@ -4,7 +4,78 @@ import { Income } from "../balance/income.model";
 import { Spending } from "../balance/spending.model";
 import { notificationServices } from "./notification.service";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = Math.max(
+  1,
+  Number(process.env.NOTIFICATION_BATCH_SIZE) || 500,
+);
+const STALE_DAYS = Math.max(7, Number(process.env.FCM_TOKEN_STALE_DAYS) || 60);
+
+const getDatePartValue = (
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes,
+) => Number(parts.find((part) => part.type === type)?.value || 0);
+
+const getTimeZoneOffsetMs = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+
+  const asUtc = Date.UTC(
+    getDatePartValue(parts, "year"),
+    getDatePartValue(parts, "month") - 1,
+    getDatePartValue(parts, "day"),
+    getDatePartValue(parts, "hour"),
+    getDatePartValue(parts, "minute"),
+    getDatePartValue(parts, "second"),
+  );
+
+  return asUtc - date.getTime();
+};
+
+const getUtcStartForTimeZoneDate = (
+  year: number,
+  month: number,
+  day: number,
+  timeZone: string,
+) => {
+  const utcGuess = Date.UTC(year, month - 1, day, 0, 0, 0, 0);
+  const offsetMs = getTimeZoneOffsetMs(new Date(utcGuess), timeZone);
+  return new Date(utcGuess - offsetMs);
+};
+
+const getTimeZoneDayRangeUtc = (referenceDate: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(referenceDate);
+
+  const year = getDatePartValue(parts, "year");
+  const month = getDatePartValue(parts, "month");
+  const day = getDatePartValue(parts, "day");
+
+  const startUtc = getUtcStartForTimeZoneDate(year, month, day, timeZone);
+  const nextStartUtc = getUtcStartForTimeZoneDate(
+    year,
+    month,
+    day + 1,
+    timeZone,
+  );
+
+  return {
+    dateKey: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+    startUtc,
+    endUtc: new Date(nextStartUtc.getTime() - 1),
+  };
+};
 
 // ==========================================
 // Daily Reminder - Runs every hour, targets users at 21:00 local time
@@ -39,10 +110,11 @@ const scheduleDailyReminder = () => {
       if (!targetTimezones.length) return;
 
       for (const tz of targetTimezones) {
-        // Get today's date in this timezone
-        const todayStr = now.toLocaleDateString("en-CA", { timeZone: tz });
-        const todayStart = new Date(todayStr + "T00:00:00.000Z");
-        const todayEnd = new Date(todayStr + "T23:59:59.999Z");
+        const {
+          dateKey: todayStr,
+          startUtc: todayStart,
+          endUtc: todayEnd,
+        } = getTimeZoneDayRangeUtc(now, tz);
 
         // Get users in this timezone
         const users = await User.find({
@@ -55,7 +127,7 @@ const scheduleDailyReminder = () => {
 
         if (!users.length) continue;
 
-        const userIds = users.map((u) => u._id);
+        const userIds = users.map((u) => u._id.toString());
 
         // Exclude users who already received daily reminder today
         const alreadySentIds = await Notification.distinct("userId", {
@@ -153,7 +225,7 @@ const scheduleWeeklyReport = () => {
 
       if (!users.length) return;
 
-      const userIds = users.map((u) => u._id);
+      const userIds = users.map((u) => u._id.toString());
 
       // Exclude users who already received this weekly report
       const alreadySentIds = await Notification.distinct("userId", {
@@ -254,7 +326,7 @@ const scheduleMonthlyReport = () => {
 
       if (!users.length) return;
 
-      const userIds = users.map((u) => u._id);
+      const userIds = users.map((u) => u._id.toString());
 
       // Calculate previous cycle date range
       const prevStart = new Date(
@@ -362,13 +434,12 @@ const scheduleMonthlyReport = () => {
 
 // ==========================================
 // Stale FCM Token Cleanup - Runs daily at 03:00 UTC
-// Removes tokens with no activity for 45+ days
+// Removes tokens with no activity for STALE_DAYS+ days
 // This handles abandoned sessions (app uninstalled without logout, etc.)
 // ==========================================
 const scheduleStaleTokenCleanup = () => {
   cron.schedule("0 3 * * *", async () => {
     try {
-      const STALE_DAYS = 45;
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - STALE_DAYS);
 

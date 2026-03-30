@@ -18,9 +18,7 @@ const validateRequest =
     try {
       // Check if schema expects body/params/query structure
       const schemaShape =
-        "_def" in schema && "shape" in schema._def
-          ? schema._def.shape()
-          : null;
+        "_def" in schema && "shape" in schema._def ? schema._def.shape() : null;
 
       // A schema field named "body" is a request-wrapper key ONLY when its
       // type is ZodObject (nested validation), not a primitive like ZodString.
@@ -44,7 +42,22 @@ const validateRequest =
           }
         : req.body;
 
-      await schema.parseAsync(dataToValidate);
+      const parsedData = await schema.parseAsync(dataToValidate);
+
+      if (hasRequestStructure) {
+        if (parsedData?.body) {
+          req.body = parsedData.body;
+        }
+        if (parsedData?.params) {
+          req.params = parsedData.params;
+        }
+        if (parsedData?.query) {
+          req.query = parsedData.query;
+        }
+      } else {
+        req.body = parsedData;
+      }
+
       return next();
     } catch (err) {
       next(err);

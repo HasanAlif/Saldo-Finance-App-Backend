@@ -1,6 +1,6 @@
 import httpStatus from "http-status";
 import ApiError from "../../../errors/ApiErrors";
-import { User, DeviceType, IFcmToken } from "../../models";
+import { User, DeviceType } from "../../models";
 import { generateDeviceUUID } from "../../../utils/generateDeviceUUID";
 
 const MAX_DEVICES_PER_USER = 10;
@@ -14,72 +14,105 @@ interface RegisterTokenPayload {
 
 // Register or update FCM token for a device
 const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
-  const { fcmToken, deviceId: rawDeviceId, deviceType, deviceName } = payload;
+  const {
+    fcmToken: rawFcmToken,
+    deviceId: rawDeviceId,
+    deviceType,
+    deviceName,
+  } = payload;
+  const fcmToken = rawFcmToken.trim();
+  const normalizedDeviceName = deviceName?.trim() || null;
+  const now = new Date();
 
   // Convert device ID to UUID for consistent storage
   const deviceId = generateDeviceUUID(rawDeviceId);
 
-  const user = await User.findById(userId).select("+fcmTokens");
-  if (!user) {
+  const result = await User.updateOne({ _id: userId }, [
+    {
+      $set: {
+        __currentTokens: { $ifNull: ["$fcmTokens", []] },
+      },
+    },
+    {
+      $set: {
+        __existingDeviceToken: {
+          $first: {
+            $filter: {
+              input: "$__currentTokens",
+              as: "existing",
+              cond: { $eq: ["$$existing.deviceId", deviceId] },
+            },
+          },
+        },
+        __filteredTokens: {
+          $filter: {
+            input: "$__currentTokens",
+            as: "existing",
+            cond: {
+              $and: [
+                { $ne: ["$$existing.deviceId", deviceId] },
+                { $ne: ["$$existing.token", fcmToken] },
+              ],
+            },
+          },
+        },
+      },
+    },
+    {
+      $set: {
+        fcmTokens: {
+          $concatArrays: [
+            "$__filteredTokens",
+            [
+              {
+                token: fcmToken,
+                deviceId,
+                deviceType,
+                deviceName: {
+                  $ifNull: [
+                    normalizedDeviceName,
+                    "$__existingDeviceToken.deviceName",
+                  ],
+                },
+                lastActiveAt: now,
+                createdAt: {
+                  $ifNull: ["$__existingDeviceToken.createdAt", now],
+                },
+              },
+            ],
+          ],
+        },
+      },
+    },
+    {
+      $set: {
+        fcmTokens: {
+          $slice: [
+            {
+              $sortArray: {
+                input: "$fcmTokens",
+                sortBy: { lastActiveAt: -1 },
+              },
+            },
+            MAX_DEVICES_PER_USER,
+          ],
+        },
+      },
+    },
+    {
+      $unset: ["__currentTokens", "__existingDeviceToken", "__filteredTokens"],
+    },
+  ]);
+
+  if (result.matchedCount === 0) {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  // Initialize fcmTokens array if undefined
-  if (!user.fcmTokens) {
-    user.fcmTokens = [];
-  }
-
-  // Find existing token entry for this device
-  const existingIndex = user.fcmTokens.findIndex(
-    (t) => t.deviceId === deviceId,
-  );
-
-  if (existingIndex !== -1) {
-    // Update existing device's token
-    user.fcmTokens[existingIndex].token = fcmToken;
-    user.fcmTokens[existingIndex].lastActiveAt = new Date();
-    if (deviceName) {
-      user.fcmTokens[existingIndex].deviceName = deviceName;
-    }
-  } else {
-    // Add new device
-    if (user.fcmTokens.length >= MAX_DEVICES_PER_USER) {
-      // Remove oldest device to make room
-      user.fcmTokens.sort(
-        (a, b) =>
-          new Date(a.lastActiveAt).getTime() -
-          new Date(b.lastActiveAt).getTime(),
-      );
-      user.fcmTokens.shift();
-    }
-
-    user.fcmTokens.push({
-      token: fcmToken,
-      deviceId,
-      deviceType,
-      deviceName,
-      lastActiveAt: new Date(),
-      createdAt: new Date(),
-    } as IFcmToken);
-  }
-
-  // Remove any duplicate tokens (same token on different deviceIds)
-  const tokenSet = new Set<string>();
-  user.fcmTokens = user.fcmTokens.filter((t) => {
-    if (tokenSet.has(t.token)) {
-      return t.deviceId === deviceId;
-    }
-    tokenSet.add(t.token);
-    return true;
-  });
-
-  // Mark fcmTokens as modified to ensure Mongoose saves the changes
-  user.markModified("fcmTokens");
-  await user.save();
+  const refreshedUser = await User.findById(userId).select("+fcmTokens").lean();
 
   return {
     message: "Token registered successfully",
-    deviceCount: user.fcmTokens.length,
+    deviceCount: refreshedUser?.fcmTokens?.length || 0,
   };
 };
 
@@ -88,22 +121,27 @@ const deleteToken = async (userId: string, rawDeviceId: string) => {
   // Convert device ID to UUID for consistent lookup
   const deviceId = generateDeviceUUID(rawDeviceId);
 
-  const result = await User.findByIdAndUpdate(
-    userId,
+  const result = await User.updateOne(
+    { _id: userId },
     { $pull: { fcmTokens: { deviceId } } },
-    { new: true, select: "_id" },
   );
 
-  if (!result) {
+  if (result.matchedCount === 0) {
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  return { message: "Token deleted successfully" };
+  return {
+    message: "Token deleted successfully",
+    removed: result.modifiedCount > 0,
+  };
 };
 
 // Delete specific token by value (called when Firebase returns invalid token error)
 const removeInvalidToken = async (userId: string, token: string) => {
-  await User.updateOne({ _id: userId }, { $pull: { fcmTokens: { token } } });
+  await User.updateOne(
+    { _id: userId, "fcmTokens.token": token },
+    { $pull: { fcmTokens: { token } } },
+  );
 };
 
 // Bulk remove invalid tokens (called after batch send)
@@ -112,12 +150,25 @@ const removeInvalidTokensBulk = async (
 ) => {
   if (!invalidTokens.length) return;
 
-  const bulkOps = invalidTokens.map(({ userId, token }) => ({
-    updateOne: {
-      filter: { _id: userId },
-      update: { $pull: { fcmTokens: { token } } },
-    },
-  }));
+  const tokenMapByUser = new Map<string, Set<string>>();
+
+  for (const { userId, token } of invalidTokens) {
+    if (!tokenMapByUser.has(userId)) {
+      tokenMapByUser.set(userId, new Set());
+    }
+    tokenMapByUser.get(userId)!.add(token);
+  }
+
+  const bulkOps = Array.from(tokenMapByUser.entries()).map(
+    ([userId, tokenSet]) => ({
+      updateOne: {
+        filter: { _id: userId },
+        update: {
+          $pull: { fcmTokens: { token: { $in: Array.from(tokenSet) } } },
+        },
+      },
+    }),
+  );
 
   await User.bulkWrite(bulkOps);
 };
