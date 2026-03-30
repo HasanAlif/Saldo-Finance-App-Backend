@@ -7,7 +7,6 @@ import { Balance } from "../balance/balance.model";
 import { Goals } from "../goals/goals.model";
 import { User } from "../../models/User.model";
 
-// Helper: get Monday-Sunday range for current week (UTC)
 const getWeekRange = () => {
   const now = new Date();
   const day = now.getUTCDay();
@@ -40,7 +39,6 @@ const getWeekRange = () => {
   return { startDate, endDate };
 };
 
-// Helper: get month range respecting user's custom monthStartDate (UTC)
 const getMonthRange = (monthStartDate: number, month?: string) => {
   let startDate: Date;
   let endDate: Date;
@@ -117,12 +115,10 @@ const getMonthRange = (monthStartDate: number, month?: string) => {
   return { startDate, endDate };
 };
 
-// Core report builder — shared by weekly and monthly
 const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
   const userObjectId = new mongoose.Types.ObjectId(userId);
   const dateFilter = { $gte: startDate, $lte: endDate };
 
-  // Run all independent queries in parallel
   const [
     incomeTotal,
     spendingTotal,
@@ -132,19 +128,16 @@ const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
     incomeEntries,
     spendingEntries,
   ] = await Promise.all([
-    // 1. Total earning
     Income.aggregate([
       { $match: { userId: userObjectId, date: dateFilter } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]),
 
-    // 2. Total spending
     Spending.aggregate([
       { $match: { userId: userObjectId, date: dateFilter } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]),
 
-    // 3. Highest spending category
     Spending.aggregate([
       { $match: { userId: userObjectId, date: dateFilter } },
       { $group: { _id: "$category", total: { $sum: "$amount" } } },
@@ -152,13 +145,11 @@ const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
       { $limit: 1 },
     ]),
 
-    // 4. Current balance (all accounts)
     Balance.aggregate([
       { $match: { userId: userObjectId } },
       { $group: { _id: null, total: { $sum: "$amount" } } },
     ]),
 
-    // 5. Goal progress (all goals, lifetime)
     Goals.aggregate([
       { $match: { userId: userObjectId } },
       {
@@ -171,25 +162,21 @@ const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
       },
     ]),
 
-    // 6. Income entries within range
     Income.find({ userId: userObjectId, date: dateFilter })
       .select("date category amount name")
       .sort({ date: -1 })
       .lean(),
 
-    // 7. Spending entries within range
     Spending.find({ userId: userObjectId, date: dateFilter })
       .select("date category amount name")
       .sort({ date: -1 })
       .lean(),
   ]);
 
-  // Extract totals
   const totalEarning = incomeTotal.length > 0 ? incomeTotal[0].total : 0;
   const totalSpending = spendingTotal.length > 0 ? spendingTotal[0].total : 0;
   const balance = currentBalance.length > 0 ? currentBalance[0].total : 0;
 
-  // Highest spending category
   const highestSpendingCategory =
     highestSpendingCat.length > 0
       ? {
@@ -198,7 +185,6 @@ const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
         }
       : null;
 
-  // Goal progress
   const goalTarget = goalsData.length > 0 ? goalsData[0].totalTarget : 0;
   const goalAccumulated =
     goalsData.length > 0 ? goalsData[0].totalAccumulated : 0;
@@ -212,7 +198,6 @@ const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
     summary: `${goalAccumulated} of ${goalTarget}`,
   };
 
-  // Build entry lists
   const earningList = incomeEntries.map((e) => ({
     date: e.date,
     category: e.category,
@@ -227,7 +212,6 @@ const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
     amount: e.amount,
   }));
 
-  // All entries merged and sorted newest first
   const allEntries = [
     ...incomeEntries.map((e) => ({
       date: e.date,
@@ -259,7 +243,6 @@ const buildReport = async (userId: string, startDate: Date, endDate: Date) => {
   };
 };
 
-// Weekly report — current week (Monday to Sunday)
 const getWeeklyReport = async (userId: string) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid user ID");
@@ -270,7 +253,6 @@ const getWeeklyReport = async (userId: string) => {
   return buildReport(userId, startDate, endDate);
 };
 
-// Monthly report — current month cycle or specific month
 const getMonthlyReport = async (userId: string, month?: string) => {
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid user ID");

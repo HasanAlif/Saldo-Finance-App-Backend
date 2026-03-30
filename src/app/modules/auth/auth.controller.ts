@@ -4,7 +4,6 @@ import catchAsync from "../../../shared/catchAsync";
 import sendResponse from "../../../shared/sendResponse";
 import { authService } from "./auth.service";
 
-// Login
 const loginUser = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.loginUser(req.body);
 
@@ -24,7 +23,6 @@ const loginUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Logout
 const logoutUser = catchAsync(async (req: Request, res: Response) => {
   res.clearCookie("token", {
     httpOnly: true,
@@ -40,7 +38,6 @@ const logoutUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get my profile
 const getMyProfile = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.getMyProfile(req.user.id);
   sendResponse(res, {
@@ -51,7 +48,6 @@ const getMyProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Change password
 const changePassword = catchAsync(async (req: Request, res: Response) => {
   const { oldPassword, newPassword } = req.body;
   const result = await authService.changePassword(
@@ -67,7 +63,6 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Forgot password
 const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.forgotPassword(req.body);
   sendResponse(res, {
@@ -78,7 +73,6 @@ const forgotPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Resend OTP
 const resendOtp = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.resendOtp(req.body.email);
   sendResponse(res, {
@@ -89,7 +83,6 @@ const resendOtp = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Verify OTP
 const verifyForgotPasswordOtp = catchAsync(
   async (req: Request, res: Response) => {
     const result = await authService.verifyForgotPasswordOtp(req.body);
@@ -102,7 +95,6 @@ const verifyForgotPasswordOtp = catchAsync(
   },
 );
 
-// Reset password
 const resetPassword = catchAsync(async (req: Request, res: Response) => {
   const { email, newPassword, confirmPassword, otp } = req.body;
   const result = await authService.resetPassword(
@@ -119,7 +111,6 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Social Login (Google, etc.)
 const socialLogin = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.socialLogin(req.body);
 

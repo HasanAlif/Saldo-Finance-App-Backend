@@ -59,7 +59,6 @@ const BalanceSchema = new Schema<IBalance>(
   },
 );
 
-// Indexes
 BalanceSchema.index({ userId: 1, createdAt: -1 });
 BalanceSchema.index({ userId: 1, isDeleted: 1 });
 

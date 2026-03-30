@@ -187,7 +187,6 @@ const getAllUsers = async (
 
   const total = await User.countDocuments(query);
 
-  // Check if pagination params are provided
   const hasPagination = page !== undefined || limit !== undefined;
 
   let users;
@@ -232,7 +231,6 @@ const getAllUsers = async (
     };
   }
 
-  // No pagination - return all data
   users = await User.find(query, {
     fullName: 1,
     email: 1,
@@ -316,7 +314,6 @@ const searchUsers = async (
       $addFields: {
         relevanceScore: {
           $add: [
-            // Exact match (highest priority: 100 points)
             {
               $cond: [
                 {
@@ -345,7 +342,7 @@ const searchUsers = async (
                 0,
               ],
             },
-            // Starts with match (high priority: 50 points)
+
             {
               $cond: [
                 {
@@ -385,7 +382,7 @@ const searchUsers = async (
                 0,
               ],
             },
-            // Contains match (lower priority: 10 points)
+
             {
               $cond: [
                 {

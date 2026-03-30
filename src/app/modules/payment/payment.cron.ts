@@ -2,7 +2,6 @@ import cron from "node-cron";
 import { User, PremiumPlan } from "../../models/User.model";
 
 const scheduleExpiryCheck = () => {
-  // Run every day at midnight (00:00)
   cron.schedule("0 0 * * *", async () => {
     try {
       const now = new Date();

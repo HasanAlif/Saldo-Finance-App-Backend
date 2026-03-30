@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Registration validation - simple: fullName, mobileNumber, email, password
 const CreateUserValidationSchema = z
   .object({
     fullName: z
@@ -28,7 +27,6 @@ const CreateUserValidationSchema = z
     path: ["confirmPassword"],
   });
 
-// Login validation
 const UserLoginValidationSchema = z.object({
   email: z.string().email("Please provide a valid email"),
   password: z.string().min(1, "Password is required"),
@@ -42,13 +40,11 @@ const UserLoginValidationSchema = z.object({
   deviceName: z.string().max(100).optional(),
 });
 
-// Profile update validation
 const UpdateProfileSchema = z.object({
   fullName: z.string().min(2).max(100).optional(),
   mobileNumber: z.string().min(10).optional(),
 });
 
-// Profile Setup validation
 const UserProfileSetupSchema = z.object({
   country: z.string().min(1, "Country is required"),
   currency: z.string().optional(),

@@ -7,7 +7,6 @@ import { NotificationValidation } from "./notification.validation";
 
 const router = express.Router();
 
-// User routes
 router.get("/me", auth(), notificationController.getMyNotifications);
 router.get("/unread-count", auth(), notificationController.getUnreadCount);
 router.patch("/mark-all-read", auth(), notificationController.markAllAsRead);
@@ -22,7 +21,6 @@ router.delete(
   notificationController.deleteNotification,
 );
 
-// Admin routes
 router.get(
   "/",
   auth(UserRole.ADMIN),

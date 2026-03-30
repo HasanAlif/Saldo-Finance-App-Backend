@@ -12,7 +12,6 @@ interface RegisterTokenPayload {
   deviceName?: string;
 }
 
-// Register or update FCM token for a device
 const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
   const {
     fcmToken: rawFcmToken,
@@ -24,7 +23,6 @@ const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
   const normalizedDeviceName = deviceName?.trim() || null;
   const now = new Date();
 
-  // Convert device ID to UUID for consistent storage
   const deviceId = generateDeviceUUID(rawDeviceId);
 
   const result = await User.updateOne({ _id: userId }, [
@@ -116,9 +114,7 @@ const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
   };
 };
 
-// Delete token for specific device (called on logout)
 const deleteToken = async (userId: string, rawDeviceId: string) => {
-  // Convert device ID to UUID for consistent lookup
   const deviceId = generateDeviceUUID(rawDeviceId);
 
   const result = await User.updateOne(
@@ -136,7 +132,6 @@ const deleteToken = async (userId: string, rawDeviceId: string) => {
   };
 };
 
-// Delete specific token by value (called when Firebase returns invalid token error)
 const removeInvalidToken = async (userId: string, token: string) => {
   await User.updateOne(
     { _id: userId, "fcmTokens.token": token },
@@ -144,7 +139,6 @@ const removeInvalidToken = async (userId: string, token: string) => {
   );
 };
 
-// Bulk remove invalid tokens (called after batch send)
 const removeInvalidTokensBulk = async (
   invalidTokens: Array<{ userId: string; token: string }>,
 ) => {

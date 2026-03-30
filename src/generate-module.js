@@ -16,15 +16,12 @@ const generateModule = (moduleName) => {
     process.exit(1);
   }
 
-  // Create module folder
   fs.mkdirSync(modulePath, { recursive: true });
 
-  // Capitalize module name
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1);
 
   const capitalizedModule = capitalize(moduleName);
 
-  // Generate files
   const files = {
     model: `
 import mongoose, { Document, Schema } from 'mongoose';
@@ -298,6 +295,5 @@ export const ${moduleName}Validation = {
   console.log(`Module '${moduleName}' created successfully!`);
 };
 
-// Run script
 const [, , moduleName] = process.argv;
 generateModule(moduleName);

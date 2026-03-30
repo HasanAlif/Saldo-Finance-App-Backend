@@ -47,14 +47,13 @@ const NotificationSchema = new Schema<INotification>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-// Compound indexes for efficient queries
 NotificationSchema.index({ userId: 1, createdAt: -1 });
 NotificationSchema.index({ userId: 1, isRead: 1 });
 
 export const Notification = mongoose.model<INotification>(
   "Notification",
-  NotificationSchema
+  NotificationSchema,
 );

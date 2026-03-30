@@ -9,7 +9,6 @@ import { PASSWORD_RESET_TEMPLATE } from "../../../utils/Template";
 import { AuthProvider, User, DeviceType } from "../../models";
 import { fcmTokenService } from "../fcm-token/fcm-token.service";
 
-// User login
 const loginUser = async (payload: {
   email: string;
   password: string;
@@ -26,7 +25,6 @@ const loginUser = async (payload: {
     throw new ApiError(httpStatus.NOT_FOUND, "Invalid email or password");
   }
 
-  // Check if user is Google-only (no password)
   if (!userData.password) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -42,7 +40,6 @@ const loginUser = async (payload: {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid email or password");
   }
 
-  // Register FCM token if provided with device info
   if (payload.fcmToken && payload.deviceId && payload.deviceType) {
     await fcmTokenService.registerToken(userData._id.toString(), {
       fcmToken: payload.fcmToken,
@@ -72,7 +69,6 @@ const loginUser = async (payload: {
   return { token: accessToken, user: userWithoutSensitive };
 };
 
-// Get user profile
 const getMyProfile = async (userId: string) => {
   const userProfile = await User.findById(userId)
     .select(
@@ -105,7 +101,6 @@ const getMyProfile = async (userId: string) => {
   };
 };
 
-// Change password
 const changePassword = async (
   userId: string,
   newPassword: string,
@@ -117,7 +112,6 @@ const changePassword = async (
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  // Check if user has a password (Google users might not)
   if (!user.password) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -140,7 +134,6 @@ const changePassword = async (
   return { message: "Password changed successfully" };
 };
 
-// Forgot password - Send OTP
 const forgotPassword = async (payload: { email: string }) => {
   const user = await User.findOne({ email: payload.email });
 
@@ -152,7 +145,7 @@ const forgotPassword = async (payload: { email: string }) => {
   }
 
   const otp = crypto.randomInt(100000, 999999).toString();
-  const otpExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+  const otpExpiry = new Date(Date.now() + 15 * 60 * 1000);
 
   await User.findByIdAndUpdate(user._id, {
     resetPasswordOtp: otp,
@@ -165,10 +158,9 @@ const forgotPassword = async (payload: { email: string }) => {
     "Password Reset OTP - Saldo",
   );
 
-  return { message: "OTP sent to your email", otp }; // Return OTP for testing purposes only
+  return { message: "OTP sent to your email", otp };
 };
 
-// Resend OTP
 const resendOtp = async (email: string) => {
   const user = await User.findOne({ email });
 
@@ -193,10 +185,9 @@ const resendOtp = async (email: string) => {
     "Password Reset OTP - Saldo",
   );
 
-  return { message: "OTP resent to your email", otp }; // Return OTP for testing purposes only
+  return { message: "OTP resent to your email", otp };
 };
 
-// Verify OTP
 const verifyForgotPasswordOtp = async (payload: {
   email: string;
   otp: string;
@@ -221,7 +212,6 @@ const verifyForgotPasswordOtp = async (payload: {
   return { message: "OTP verified successfully", isValid: true };
 };
 
-// Reset password
 const resetPassword = async (
   email: string,
   newPassword: string,
@@ -263,7 +253,6 @@ const resetPassword = async (
   return { message: "Password reset successfully" };
 };
 
-// Social Login (Google, etc.)
 const socialLogin = async (payload: {
   email: string;
   name: string;
@@ -290,9 +279,7 @@ const socialLogin = async (payload: {
   let user = await User.findOne({ email }).lean();
 
   if (user) {
-    // User exists - check if linking is needed
     if (user.authProvider === AuthProvider.LOCAL) {
-      // Link Google account to existing LOCAL user
       await User.findByIdAndUpdate(user._id, {
         googleId: providerId,
         authProvider: provider,
@@ -300,14 +287,12 @@ const socialLogin = async (payload: {
       });
       user = await User.findById(user._id).lean();
     } else if (user.googleId && user.googleId !== providerId) {
-      // Different Google account trying to use same email
       throw new ApiError(
         httpStatus.BAD_REQUEST,
         "This email is already registered with a different Google account",
       );
     }
   } else {
-    // Create new user
     const newUser = await User.create({
       fullName: name,
       email,
@@ -325,7 +310,6 @@ const socialLogin = async (payload: {
     );
   }
 
-  // Register FCM token if provided with device info
   if (fcmToken && deviceId && deviceType) {
     await fcmTokenService.registerToken(user._id.toString(), {
       fcmToken,

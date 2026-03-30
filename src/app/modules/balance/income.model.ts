@@ -68,7 +68,6 @@ const IncomeSchema = new Schema<IIncome>(
   },
 );
 
-// Compound index for efficient queries
 IncomeSchema.index({ userId: 1, date: -1 });
 IncomeSchema.index({ accountId: 1, date: -1 });
 

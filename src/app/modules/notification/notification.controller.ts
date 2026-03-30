@@ -5,7 +5,6 @@ import sendResponse from "../../../shared/sendResponse";
 import { NotificationType } from "../../models";
 import { notificationServices } from "./notification.service";
 
-// Get my notifications
 const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 20;
@@ -25,7 +24,6 @@ const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get all notifications (Admin)
 const getAllNotifications = catchAsync(async (req: Request, res: Response) => {
   const page = parseInt(req.query.page as string) || 1;
   const limit = parseInt(req.query.limit as string) || 50;
@@ -41,7 +39,6 @@ const getAllNotifications = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get single notification
 const getSingleNotification = catchAsync(
   async (req: Request, res: Response) => {
     const result = await notificationServices.getSingleNotification(
@@ -58,7 +55,6 @@ const getSingleNotification = catchAsync(
   },
 );
 
-// Mark all as read
 const markAllAsRead = catchAsync(async (req: Request, res: Response) => {
   const result = await notificationServices.markAllAsRead(req.user.id);
 
@@ -70,7 +66,6 @@ const markAllAsRead = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Delete notification
 const deleteNotification = catchAsync(async (req: Request, res: Response) => {
   const result = await notificationServices.deleteNotification(
     req.user.id,
@@ -85,7 +80,6 @@ const deleteNotification = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get unread count
 const getUnreadCount = catchAsync(async (req: Request, res: Response) => {
   const result = await notificationServices.getUnreadCount(req.user.id);
 
@@ -97,7 +91,6 @@ const getUnreadCount = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Admin: Send notification to a single user
 const sendNotification = catchAsync(async (req: Request, res: Response) => {
   const { userId, title, body, type, data } = req.body;
 
@@ -117,12 +110,11 @@ const sendNotification = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Admin: Send notification to multiple users (omit userId to broadcast to ALL users)
 const sendBulkNotification = catchAsync(async (req: Request, res: Response) => {
   const { userId, title, body, type, data } = req.body;
 
   const result = await notificationServices.sendBulkNotification(
-    userId || null, // null triggers broadcast to all active users
+    userId || null,
     title,
     body,
     type || NotificationType.NORMAL,

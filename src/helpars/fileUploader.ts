@@ -12,7 +12,6 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-// Configure DigitalOcean Spaces
 const s3Client = new S3Client({
   region: "us-east-1",
   endpoint: process.env.DO_SPACE_ENDPOINT,
@@ -22,18 +21,15 @@ const s3Client = new S3Client({
   },
 });
 
-// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Multer configuration using memoryStorage (for DigitalOcean & Cloudinary)
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-// ✅ Fixed Cloudinary Storage
 const cloudinaryStorage = new CloudinaryStorage({
   cloudinary,
   params: {
@@ -43,42 +39,37 @@ const cloudinaryStorage = new CloudinaryStorage({
 
 const cloudinaryUpload = multer({ storage: cloudinaryStorage });
 
-// Upload single image
 const uploadSingle = upload.single("image");
 const uploadFile = upload.single("file");
 
-// Upload multiple images
 const uploadMultipleImage = upload.fields([{ name: "images", maxCount: 15 }]);
 const uploadMultipleFiles = upload.fields([{ name: "files", maxCount: 15 }]);
 
-// Upload profile and banner images
 const userMutipleFiles = upload.fields([
   { name: "file", maxCount: 1 },
   { name: "image", maxCount: 1 },
 ]);
 
-// ✅ Enhanced Cloudinary Upload with better file handling
 const uploadToCloudinary = async (
   file: Express.Multer.File,
-  folder: string = "uploads"
+  folder: string = "uploads",
 ): Promise<{ Location: string; public_id: string }> => {
   if (!file) {
     throw new Error("File is required for uploading.");
   }
 
   return new Promise((resolve, reject) => {
-    // Generate unique filename
-    const uniqueFilename = `${Date.now()}_${Math.random().toString(36).substring(2)}_${file.originalname.replace(/[^a-zA-Z0-9.]/g, '_')}`;
-    
+    const uniqueFilename = `${Date.now()}_${Math.random().toString(36).substring(2)}_${file.originalname.replace(/[^a-zA-Z0-9.]/g, "_")}`;
+
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: folder,
-        resource_type: "auto", // Supports images, videos, etc.
-        public_id: uniqueFilename.split('.')[0], // Remove extension for public_id
+        resource_type: "auto",
+        public_id: uniqueFilename.split(".")[0],
         unique_filename: true,
         overwrite: false,
         quality: "auto",
-        fetch_format: "auto"
+        fetch_format: "auto",
       },
       (error, result) => {
         if (error) {
@@ -86,20 +77,17 @@ const uploadToCloudinary = async (
           return reject(error);
         }
 
-        // ✅ Explicitly return `Location` and `public_id`
         resolve({
-          Location: result?.secure_url || "", // Cloudinary URL
+          Location: result?.secure_url || "",
           public_id: result?.public_id || "",
         });
-      }
+      },
     );
 
-    // Convert buffer to stream and upload
     streamifier.createReadStream(file.buffer).pipe(uploadStream);
   });
 };
 
-// ✅ Unchanged: DigitalOcean Upload
 const uploadToDigitalOcean = async (file: Express.Multer.File) => {
   if (!file) {
     throw new Error("File is required for uploading.");
@@ -110,15 +98,13 @@ const uploadToDigitalOcean = async (file: Express.Multer.File) => {
     const uploadParams = {
       Bucket: process.env.DO_SPACE_BUCKET || "",
       Key,
-      Body: file.buffer, // ✅ Use buffer instead of file path
+      Body: file.buffer,
       ACL: "public-read" as ObjectCannedACL,
       ContentType: file.mimetype,
     };
 
-    // Upload file to DigitalOcean Spaces
     await s3Client.send(new PutObjectCommand(uploadParams));
 
-    // Format the URL
     const fileURL = `${process.env.DO_SPACE_ENDPOINT}/${process.env.DO_SPACE_BUCKET}/${Key}`;
     return {
       Location: fileURL,
@@ -131,17 +117,14 @@ const uploadToDigitalOcean = async (file: Express.Multer.File) => {
   }
 };
 
-// Upload profile image specifically
 const uploadProfileImage = async (file: Express.Multer.File) => {
   return uploadToCloudinary(file, "profile-images");
 };
 
-// Upload general file
 const uploadGeneralFile = async (file: Express.Multer.File) => {
   return uploadToCloudinary(file, "user-files");
 };
 
-// ✅ No Name Changes, Just Fixes
 export const fileUploader = {
   upload,
   uploadSingle,

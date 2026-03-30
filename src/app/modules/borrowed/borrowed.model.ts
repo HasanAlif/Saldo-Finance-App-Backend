@@ -95,7 +95,6 @@ BorrowedSchema.pre("validate", function (next) {
   next();
 });
 
-// Indexes for better query performance
 BorrowedSchema.index({ userId: 1, status: 1 });
 BorrowedSchema.index({ userId: 1, createdAt: -1 });
 BorrowedSchema.index({ userId: 1, accountId: 1, status: 1 });

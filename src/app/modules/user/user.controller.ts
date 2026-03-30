@@ -6,7 +6,6 @@ import sendResponse from "../../../shared/sendResponse";
 import { userFilterableFields } from "./user.costant";
 import { userService } from "./user.service";
 
-// Register new user
 const createUser = catchAsync(async (req: Request, res: Response) => {
   const {
     fullName,
@@ -33,7 +32,6 @@ const createUser = catchAsync(async (req: Request, res: Response) => {
     countryCode,
   });
 
-  // Set token in cookie
   res.cookie("token", result.token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -50,7 +48,6 @@ const createUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Get all users
 const getUsers = catchAsync(async (req: Request, res: Response) => {
   const filters = pick(req.query, userFilterableFields);
   const options = pick(req.query, ["limit", "page", "sortBy", "sortOrder"]);
@@ -65,7 +62,6 @@ const getUsers = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Update profile
 const updateProfile = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.updateProfile(req);
   sendResponse(res, {
@@ -76,7 +72,6 @@ const updateProfile = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Update user (Admin)
 const updateUser = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.updateUserIntoDb(req.body, req.params.id);
   sendResponse(res, {
@@ -87,7 +82,6 @@ const updateUser = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Update profile image
 const profileImageChange = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.profileImageChange(req);
   sendResponse(res, {
@@ -98,7 +92,6 @@ const profileImageChange = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Update account
 const accountUpdate = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.accountUpdateIntoDb(req.body, req.user.id);
   sendResponse(res, {
@@ -109,7 +102,6 @@ const accountUpdate = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Delete account
 const deleteMe = catchAsync(async (req: Request, res: Response) => {
   const result = await userService.deleteUserFromDb(req.user.id);
 
@@ -123,7 +115,6 @@ const deleteMe = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-// Setup user profile (country, currency, language)
 const setupProfile = catchAsync(async (req: Request, res: Response) => {
   const { country, currency, language, timezone } = req.body;
   const result = await userService.userProfileSetup(req.user.id, {

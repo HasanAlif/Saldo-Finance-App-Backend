@@ -95,7 +95,6 @@ LentSchema.pre("validate", function (next) {
   next();
 });
 
-// Indexes for better query performance
 LentSchema.index({ userId: 1, status: 1 });
 LentSchema.index({ userId: 1, createdAt: -1 });
 LentSchema.index({ userId: 1, accountId: 1, status: 1 });

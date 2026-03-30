@@ -6,20 +6,16 @@ import ApiError from "../../errors/ApiErrors";
 import { jwtHelpers } from "../../helpars/jwtHelpers";
 import { User } from "../models";
 
-// Extract token from various sources
 const extractToken = (req: Request): string | undefined => {
-  // 1. Authorization header (Bearer token)
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.split(" ")[1];
   }
 
-  // 2. HTTP-only cookie
   if (req.cookies?.token) {
     return req.cookies.token;
   }
 
-  // 3. Custom header
   if (req.headers["x-auth-token"]) {
     return req.headers["x-auth-token"] as string;
   }
@@ -45,14 +41,12 @@ const auth = (...roles: string[]) => {
         config.jwt.jwt_secret as string,
       );
 
-      // Verify user exists
       const user = await User.findById(decoded.id).select("role").lean();
 
       if (!user) {
         throw new ApiError(httpStatus.UNAUTHORIZED, "User not found");
       }
 
-      // Check role authorization
       if (roles.length && !roles.includes(decoded.role)) {
         throw new ApiError(httpStatus.FORBIDDEN, "Access denied");
       }

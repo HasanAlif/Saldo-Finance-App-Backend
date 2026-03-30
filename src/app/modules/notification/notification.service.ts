@@ -173,12 +173,10 @@ const sendBulkNotificationToTargetIds = async (
   }
 };
 
-// Escape regex special characters in user-provided strings
 const escapeRegex = (str: string): string => {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 };
 
-// Helper: Get custom month date range based on user's start date
 const getMonthDateRange = (
   monthStartDate: number = 1,
 ): { startDate: Date; endDate: Date } => {
@@ -231,7 +229,6 @@ const getMonthDateRange = (
   return { startDate, endDate };
 };
 
-// Helper: Get custom week date range
 const getWeekDateRange = (
   monthStartDate: number = 1,
 ): { startDate: Date; endDate: Date } => {
@@ -259,15 +256,9 @@ const getWeekDateRange = (
   return { startDate, endDate };
 };
 
-// ==========================================
-// Core notification functions
-// ==========================================
-
-// Create and send notification to a single user (all their devices)
 const sendNotification = async (payload: CreateNotificationPayload) => {
   const { userId, title, body, type = NotificationType.NORMAL, data } = payload;
 
-  // Save notification to database
   const notification = await Notification.create({
     userId,
     title,
@@ -276,10 +267,8 @@ const sendNotification = async (payload: CreateNotificationPayload) => {
     data,
   });
 
-  // Get user's FCM tokens (all devices)
   const user = await User.findById(userId).select("+fcmTokens").lean();
 
-  // Send push notification to all devices
   if (user?.fcmTokens?.length) {
     if (!isFirebaseReady()) {
       console.error(
@@ -290,7 +279,6 @@ const sendNotification = async (payload: CreateNotificationPayload) => {
 
     const tokens = Array.from(new Set(user.fcmTokens.map((t) => t.token)));
 
-    // Ensure all data values are strings for FCM
     const fcmData: Record<string, string> = {
       notificationId: notification._id.toString(),
       type,
@@ -346,7 +334,6 @@ const sendNotification = async (payload: CreateNotificationPayload) => {
   return notification;
 };
 
-// Send notification to multiple users (pass null to send to ALL active users)
 const sendBulkNotification = async (
   userIds: string[] | null,
   title: string,
@@ -411,13 +398,8 @@ const sendBulkNotification = async (
   return totalResult;
 };
 
-// ==========================================
-// Budget alert check (called after spending)
-// ==========================================
-
 const checkBudgetAlerts = async (userId: string, spendingCategory: string) => {
   try {
-    // Find budgets matching the spending category (case-insensitive)
     const budgets = await Budget.find({
       userId: new mongoose.Types.ObjectId(userId),
       category: {
@@ -436,7 +418,6 @@ const checkBudgetAlerts = async (userId: string, spendingCategory: string) => {
           ? getMonthDateRange(monthStartDate)
           : getWeekDateRange(monthStartDate);
 
-      // Aggregate total spending for this category in the current period
       const spendingAgg = await Spending.aggregate([
         {
           $match: {
@@ -456,7 +437,6 @@ const checkBudgetAlerts = async (userId: string, spendingCategory: string) => {
       const percentage = (totalSpent / budget.budgetValue) * 100;
       const periodStartStr = startDate.toISOString().split("T")[0];
 
-      // Reset thresholds if the period has changed
       let currentThresholds: number[] = budget.notifiedThresholds || [];
       const storedPeriod = budget.thresholdPeriodStart
         ? new Date(budget.thresholdPeriodStart).toISOString().split("T")[0]
@@ -472,7 +452,6 @@ const checkBudgetAlerts = async (userId: string, spendingCategory: string) => {
 
       const periodLabel = budget.status === "MONTHLY" ? "month" : "week";
 
-      // Check each threshold level
       for (const threshold of [50, 80, 100]) {
         if (percentage >= threshold && !currentThresholds.includes(threshold)) {
           const isExceeded = threshold >= 100;
@@ -505,10 +484,6 @@ const checkBudgetAlerts = async (userId: string, spendingCategory: string) => {
   }
 };
 
-// ==========================================
-// Transaction notification (called after income/spending)
-// ==========================================
-
 const sendTransactionNotification = async (
   userId: string,
   transactionType: "income" | "spending",
@@ -540,11 +515,6 @@ const sendTransactionNotification = async (
   }
 };
 
-// ==========================================
-// CRUD operations
-// ==========================================
-
-// Get notifications for a user
 const getMyNotifications = async (userId: string, page = 1, limit = 20) => {
   const skip = (page - 1) * limit;
 
@@ -570,7 +540,6 @@ const getMyNotifications = async (userId: string, page = 1, limit = 20) => {
   };
 };
 
-// Get all notifications (Admin)
 const getAllNotifications = async (page = 1, limit = 50) => {
   const skip = (page - 1) * limit;
 
@@ -585,7 +554,6 @@ const getAllNotifications = async (page = 1, limit = 50) => {
   };
 };
 
-// Get single notification and mark as read
 const getSingleNotification = async (
   userId: string,
   notificationId: string,
@@ -603,13 +571,11 @@ const getSingleNotification = async (
   return notification;
 };
 
-// Mark all notifications as read
 const markAllAsRead = async (userId: string) => {
   await Notification.updateMany({ userId, isRead: false }, { isRead: true });
   return { message: "All notifications marked as read" };
 };
 
-// Delete notification
 const deleteNotification = async (userId: string, notificationId: string) => {
   const result = await Notification.findOneAndDelete({
     _id: notificationId,
@@ -623,7 +589,6 @@ const deleteNotification = async (userId: string, notificationId: string) => {
   return { message: "Notification deleted" };
 };
 
-// Get unread count
 const getUnreadCount = async (userId: string) => {
   const count = await Notification.countDocuments({ userId, isRead: false });
   return { unreadCount: count };

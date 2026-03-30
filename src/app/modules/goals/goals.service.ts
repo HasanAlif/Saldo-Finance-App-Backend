@@ -7,12 +7,10 @@ const createGoal = async (
   userId: string,
   payload: Partial<IGoals>,
 ): Promise<IGoals> => {
-  // Validate ObjectId
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid user ID");
   }
 
-  // Create goal with userId
   const goalData = {
     ...payload,
     userId,
@@ -31,7 +29,6 @@ const getAllGoals = async (userId: string) => {
 
   const goals = await Goals.find({ userId }).sort({ createdAt: -1 }).lean();
 
-  // Calculate progress and filter data for each goal
   const goalsWithProgress = goals.map((goal) => {
     const amountLeft = Math.max(0, goal.targetAmount - goal.accumulatedAmount);
     const progressPercentage = Math.min(
@@ -51,13 +48,11 @@ const getAllGoals = async (userId: string) => {
     };
   });
 
-  // Calculate overall completion stats
   const totalGoals = goals.length;
   const completedGoals = goals.filter(
     (goal) => goal.status === "COMPLETED",
   ).length;
 
-  // Calculate total money left across all goals
   const totalLeft = goalsWithProgress.reduce(
     (sum, goal) => sum + goal.amountLeft,
     0,
@@ -102,7 +97,6 @@ const updateGoal = async (
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid goal ID");
   }
 
-  // Prevent direct modification of sensitive fields
   const updateData = { ...payload };
   delete (updateData as any).userId;
   delete (updateData as any).status;
@@ -153,19 +147,16 @@ const addProgress = async (
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid goal ID");
   }
 
-  // Validate amount
   if (amount <= 0) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Amount must be greater than 0");
   }
 
-  // Find the goal first
   const goal = await Goals.findOne({ _id: goalId, userId });
 
   if (!goal) {
     throw new ApiError(httpStatus.NOT_FOUND, "Goal not found");
   }
 
-  // Check if goal is already completed
   if (goal.status === "COMPLETED") {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -173,10 +164,8 @@ const addProgress = async (
     );
   }
 
-  // Calculate new accumulated amount
   const newAccumulatedAmount = goal.accumulatedAmount + amount;
 
-  // Prevent exceeding target amount
   if (newAccumulatedAmount > goal.targetAmount) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -186,10 +175,8 @@ const addProgress = async (
     );
   }
 
-  // Update accumulated amount
   goal.accumulatedAmount = newAccumulatedAmount;
 
-  // Auto-complete if target reached
   if (newAccumulatedAmount >= goal.targetAmount) {
     goal.status = "COMPLETED";
   }
@@ -210,19 +197,16 @@ const markAsComplete = async (
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid goal ID");
   }
 
-  // Find the goal first
   const goal = await Goals.findOne({ _id: goalId, userId });
 
   if (!goal) {
     throw new ApiError(httpStatus.NOT_FOUND, "Goal not found");
   }
 
-  // Check if goal is already completed
   if (goal.status === "COMPLETED") {
     throw new ApiError(httpStatus.BAD_REQUEST, "Goal is already completed");
   }
 
-  // Mark as complete and set accumulated amount to target amount
   goal.status = "COMPLETED";
   goal.accumulatedAmount = goal.targetAmount;
 

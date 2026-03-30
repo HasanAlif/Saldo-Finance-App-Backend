@@ -59,7 +59,6 @@ const BudgetSchema = new Schema<IBudget>(
   },
 );
 
-// Index for better performance
 BudgetSchema.index({ userId: 1, category: 1 });
 BudgetSchema.index({ userId: 1, status: 1 });
 

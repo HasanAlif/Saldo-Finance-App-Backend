@@ -20,11 +20,9 @@ export const corsOptions = {
   credentials: true,
 };
 
-// Middleware setup
 app.use(cors(corsOptions));
 app.use(cookieParser());
 
-// Stripe webhook — must be before express.json() for raw body signature verification
 app.post(
   "/api/payments/webhook",
   express.raw({ type: "application/json" }),
@@ -35,18 +33,14 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-// Route handler for root endpoint
 app.get("/", (req: Request, res: Response) => {
   res.send(LANDING_PAGE_TEMPLATE);
 });
 
-// Router setup
 app.use("/api", router);
 
-// Error handling middleware
 app.use(GlobalErrorHandler);
 
-// Not found handler
 app.use((req: Request, res: Response, next: NextFunction) => {
   res.status(httpStatus.NOT_FOUND).json({
     success: false,

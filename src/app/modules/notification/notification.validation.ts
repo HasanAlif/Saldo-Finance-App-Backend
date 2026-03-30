@@ -10,7 +10,7 @@ const sendNotificationSchema = z.object({
 });
 
 const sendBulkNotificationSchema = z.object({
-  userId: z.array(z.string().min(1)).optional(), // omit to send to ALL registered users
+  userId: z.array(z.string().min(1)).optional(),
   title: z.string().min(1, "Title is required").max(200),
   body: z.string().min(1, "Body is required").max(1000),
   type: z.nativeEnum(NotificationType).optional(),

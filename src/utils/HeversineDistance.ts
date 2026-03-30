@@ -1,19 +1,11 @@
-/**
- *
- * @param lat1 user latitude
- * @param lon1 user longitude
- * @param lat2 post latitude
- * @param lon2 post longitude
- * @returns Haversine distance in kilometers
- */
 const haversineDistance = (
   lat1: number,
   lon1: number,
   lat2: number,
-  lon2: number
+  lon2: number,
 ) => {
   const toRad = (deg: number) => deg * (Math.PI / 180);
-  const R = 6371; // Radius of Earth in KM
+  const R = 6371;
 
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);

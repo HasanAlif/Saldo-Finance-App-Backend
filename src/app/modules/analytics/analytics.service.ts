@@ -3,7 +3,6 @@ import { Income } from "../balance/income.model";
 import { Spending } from "../balance/spending.model";
 import { Balance } from "../balance/balance.model";
 
-// Income vs Expenses — yearly breakdown by month
 const getIncomeVsExpenses = async (userId: string, year: number) => {
   const uid = new mongoose.Types.ObjectId(userId);
   const start = new Date(Date.UTC(year, 0, 1));
@@ -47,7 +46,6 @@ const getIncomeVsExpenses = async (userId: string, year: number) => {
   };
 };
 
-// Balance Trend — daily closing balance for a given month
 const getBalanceTrend = async (userId: string, year: number, month: number) => {
   const uid = new mongoose.Types.ObjectId(userId);
   const start = new Date(Date.UTC(year, month - 1, 1));
@@ -80,7 +78,6 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
 
   const currentBalance = currentBalanceAgg[0]?.total || 0;
 
-  // Check if there are any transactions in this month
   const hasTransactions = incomeAgg.length > 0 || spendingAgg.length > 0;
 
   if (!hasTransactions) {
@@ -109,7 +106,6 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
     }
   });
 
-  // Calculate net change per day
   const dailyNet: { day: number; net: number }[] = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const income = incomeMap.get(d) || 0;
@@ -117,7 +113,6 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
     dailyNet.push({ day: d, net: income - expense });
   }
 
-  // Calculate total net change from month start to now (after this month)
   const now = new Date();
   const isCurrentMonth =
     now.getUTCFullYear() === year && now.getUTCMonth() + 1 === month;
@@ -125,12 +120,8 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
     ? Math.min(now.getUTCDate(), daysInMonth)
     : daysInMonth;
 
-  // Sum all net changes after lastDay to subtract from currentBalance
-  // to get the closing balance at lastDay
-  // Then work backwards
   let futureNetAfterMonth = 0;
 
-  // Get all income/spending AFTER this month to subtract from current balance
   const afterEnd = new Date();
   if (afterEnd > end) {
     const [futureIncome, futureSpending] = await Promise.all([
@@ -147,11 +138,9 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
       (futureIncome[0]?.total || 0) - (futureSpending[0]?.total || 0);
   }
 
-  // closing balance at end of last day of the month
   let runningBalance = currentBalance - futureNetAfterMonth;
   const endBalance = runningBalance;
 
-  // Work backwards from lastDay to build daily balances
   const trend: { day: number; balance: number; currency: string }[] = [];
   for (let d = lastDay; d >= 1; d--) {
     trend.unshift({
@@ -162,10 +151,8 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
     runningBalance -= dailyNet[d - 1].net;
   }
 
-  // Calculate the balance at the start of the month (before day 1)
   const startBalance = runningBalance;
 
-  // Calculate growth percentage
   const growthPercentage =
     startBalance !== 0
       ? Math.round(
@@ -185,7 +172,6 @@ const getBalanceTrend = async (userId: string, year: number, month: number) => {
   };
 };
 
-// Spending by Category — monthly breakdown with percentages
 const getSpendingByCategory = async (
   userId: string,
   year: number,

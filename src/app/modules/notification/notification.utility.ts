@@ -9,7 +9,6 @@ interface NotificationPayload {
   data?: Record<string, any>;
 }
 
-// Send push notification via FCM
 export const sendPushNotification = async (
   fcmToken: string,
   title: string,
@@ -33,13 +32,11 @@ export const sendPushNotification = async (
   }
 };
 
-// Create notification and send push (to all user's devices)
 export const createAndSendNotification = async (
   payload: NotificationPayload,
 ): Promise<void> => {
   const { userId, title, body, type = NotificationType.NORMAL, data } = payload;
 
-  // Create notification in database
   const notification = await Notification.create({
     userId,
     title,
@@ -48,7 +45,6 @@ export const createAndSendNotification = async (
     data,
   });
 
-  // Get user FCM tokens and send push to all devices
   const user = await User.findById(userId).select("+fcmTokens").lean();
 
   if (user?.fcmTokens?.length) {
@@ -94,7 +90,6 @@ export const createAndSendNotification = async (
   }
 };
 
-// Send notification to multiple users (all their devices)
 export const sendBulkPushNotification = async (
   userIds: string[],
   title: string,
@@ -104,7 +99,6 @@ export const sendBulkPushNotification = async (
 ): Promise<{ sent: number; failed: number }> => {
   if (!userIds.length) return { sent: 0, failed: 0 };
 
-  // Get all user FCM tokens
   const users = await User.find({
     _id: { $in: userIds },
     fcmTokens: { $exists: true, $not: { $size: 0 } },
@@ -114,7 +108,6 @@ export const sendBulkPushNotification = async (
 
   if (!users.length) return { sent: 0, failed: 0 };
 
-  // Flatten all tokens with user mapping
   const tokenUserMap: Map<string, string> = new Map();
   const allTokens: string[] = [];
 

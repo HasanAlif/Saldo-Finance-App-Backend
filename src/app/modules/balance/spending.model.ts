@@ -68,7 +68,6 @@ const SpendingSchema = new Schema<ISpending>(
   },
 );
 
-// Compound index for efficient queries
 SpendingSchema.index({ userId: 1, date: -1 });
 SpendingSchema.index({ accountId: 1, date: -1 });
 

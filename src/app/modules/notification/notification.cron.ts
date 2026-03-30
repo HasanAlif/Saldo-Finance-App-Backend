@@ -77,15 +77,11 @@ const getTimeZoneDayRangeUtc = (referenceDate: Date, timeZone: string) => {
   };
 };
 
-// ==========================================
-// Daily Reminder - Runs every hour, targets users at 21:00 local time
-// ==========================================
 const scheduleDailyReminder = () => {
   cron.schedule("0 * * * *", async () => {
     try {
       const now = new Date();
 
-      // Get all distinct timezones from active users with FCM tokens
       const timezones: string[] = await User.distinct("timezone", {
         status: "ACTIVE",
         fcmTokens: { $exists: true, $not: { $size: 0 } },
@@ -93,7 +89,6 @@ const scheduleDailyReminder = () => {
 
       if (!timezones.length) return;
 
-      // Find timezones where local hour is 21
       const targetTimezones = timezones.filter((tz) => {
         try {
           const formatter = new Intl.DateTimeFormat("en-US", {
@@ -116,7 +111,6 @@ const scheduleDailyReminder = () => {
           endUtc: todayEnd,
         } = getTimeZoneDayRangeUtc(now, tz);
 
-        // Get users in this timezone
         const users = await User.find({
           timezone: tz,
           status: "ACTIVE",
@@ -129,7 +123,6 @@ const scheduleDailyReminder = () => {
 
         const userIds = users.map((u) => u._id.toString());
 
-        // Exclude users who already received daily reminder today
         const alreadySentIds = await Notification.distinct("userId", {
           userId: { $in: userIds },
           "data.notifType": "DAILY_REMINDER",
@@ -141,7 +134,6 @@ const scheduleDailyReminder = () => {
 
         if (!eligibleIds.length) continue;
 
-        // Find users who already have activity today (batch query)
         const [activeIncome, activeSpending] = await Promise.all([
           Income.distinct("userId", {
             userId: { $in: eligibleIds },
@@ -158,7 +150,6 @@ const scheduleDailyReminder = () => {
           ...activeSpending.map((id: any) => id.toString()),
         ]);
 
-        // Only send to users with NO activity today
         const inactiveIds = eligibleIds.filter(
           (id) => !activeSet.has(id.toString()),
         );
@@ -170,7 +161,6 @@ const scheduleDailyReminder = () => {
           "Today you have not entry any activity. For not losing flow of your saving goal and tracking your entry please perform todays activity.";
         const data = { notifType: "DAILY_REMINDER", date: todayStr };
 
-        // Send in batches of BATCH_SIZE
         for (let i = 0; i < inactiveIds.length; i += BATCH_SIZE) {
           const batch = inactiveIds.slice(i, i + BATCH_SIZE);
           await notificationServices.sendBulkNotification(
@@ -196,15 +186,11 @@ const scheduleDailyReminder = () => {
   );
 };
 
-// ==========================================
-// Weekly Report - Every Sunday at 09:00 UTC
-// ==========================================
 const scheduleWeeklyReport = () => {
   cron.schedule("0 9 * * 0", async () => {
     try {
       const now = new Date();
 
-      // Calculate the past week range (last 7 days)
       const weekEnd = new Date(now);
       weekEnd.setUTCDate(now.getUTCDate() - 1);
       weekEnd.setUTCHours(23, 59, 59, 999);
@@ -215,7 +201,6 @@ const scheduleWeeklyReport = () => {
 
       const weekStartStr = weekStart.toISOString().split("T")[0];
 
-      // Get all active users with FCM tokens
       const users = await User.find({
         status: "ACTIVE",
         fcmTokens: { $exists: true, $not: { $size: 0 } },
@@ -227,7 +212,6 @@ const scheduleWeeklyReport = () => {
 
       const userIds = users.map((u) => u._id.toString());
 
-      // Exclude users who already received this weekly report
       const alreadySentIds = await Notification.distinct("userId", {
         userId: { $in: userIds },
         "data.notifType": "WEEKLY_REPORT",
@@ -239,7 +223,6 @@ const scheduleWeeklyReport = () => {
 
       if (!eligibleIds.length) return;
 
-      // Find which users had activity this week (batch query)
       const [activeIncome, activeSpending] = await Promise.all([
         Income.distinct("userId", {
           userId: { $in: eligibleIds },
@@ -263,7 +246,6 @@ const scheduleWeeklyReport = () => {
         (id) => !activeSet.has(id.toString()),
       );
 
-      // Send "report ready" to active users
       for (let i = 0; i < activeUserIds.length; i += BATCH_SIZE) {
         const batch = activeUserIds.slice(i, i + BATCH_SIZE);
         await notificationServices.sendBulkNotification(
@@ -279,7 +261,6 @@ const scheduleWeeklyReport = () => {
         );
       }
 
-      // Send reminder to inactive users
       for (let i = 0; i < inactiveUserIds.length; i += BATCH_SIZE) {
         const batch = inactiveUserIds.slice(i, i + BATCH_SIZE);
         await notificationServices.sendBulkNotification(
@@ -305,17 +286,12 @@ const scheduleWeeklyReport = () => {
   console.log("[Cron] Weekly report scheduled (Sunday at 09:00 UTC)");
 };
 
-// ==========================================
-// Monthly Report - Daily at 09:00 UTC
-// Checks if today is a user's monthStartDate
-// ==========================================
 const scheduleMonthlyReport = () => {
   cron.schedule("0 9 * * *", async () => {
     try {
       const today = new Date();
       const currentDay = today.getUTCDate();
 
-      // Find users whose new month cycle starts today
       const users = await User.find({
         status: "ACTIVE",
         fcmTokens: { $exists: true, $not: { $size: 0 } },
@@ -328,7 +304,6 @@ const scheduleMonthlyReport = () => {
 
       const userIds = users.map((u) => u._id.toString());
 
-      // Calculate previous cycle date range
       const prevStart = new Date(
         Date.UTC(
           today.getUTCFullYear(),
@@ -354,7 +329,6 @@ const scheduleMonthlyReport = () => {
 
       const monthStartStr = prevStart.toISOString().split("T")[0];
 
-      // Exclude users who already received this monthly report
       const alreadySentIds = await Notification.distinct("userId", {
         userId: { $in: userIds },
         "data.notifType": "MONTHLY_REPORT",
@@ -366,7 +340,6 @@ const scheduleMonthlyReport = () => {
 
       if (!eligibleIds.length) return;
 
-      // Find which users had activity in the previous month cycle
       const [activeIncome, activeSpending] = await Promise.all([
         Income.distinct("userId", {
           userId: { $in: eligibleIds },
@@ -390,7 +363,6 @@ const scheduleMonthlyReport = () => {
         (id) => !activeSet.has(id.toString()),
       );
 
-      // Send "report ready" to active users
       for (let i = 0; i < activeUserIds.length; i += BATCH_SIZE) {
         const batch = activeUserIds.slice(i, i + BATCH_SIZE);
         await notificationServices.sendBulkNotification(
@@ -406,7 +378,6 @@ const scheduleMonthlyReport = () => {
         );
       }
 
-      // Send reminder to inactive users
       for (let i = 0; i < inactiveUserIds.length; i += BATCH_SIZE) {
         const batch = inactiveUserIds.slice(i, i + BATCH_SIZE);
         await notificationServices.sendBulkNotification(
@@ -432,18 +403,12 @@ const scheduleMonthlyReport = () => {
   console.log("[Cron] Monthly report scheduled (daily at 09:00 UTC)");
 };
 
-// ==========================================
-// Stale FCM Token Cleanup - Runs daily at 03:00 UTC
-// Removes tokens with no activity for STALE_DAYS+ days
-// This handles abandoned sessions (app uninstalled without logout, etc.)
-// ==========================================
 const scheduleStaleTokenCleanup = () => {
   cron.schedule("0 3 * * *", async () => {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - STALE_DAYS);
 
-      // Find and remove stale tokens
       const result = await User.updateMany(
         {
           fcmTokens: {
@@ -468,9 +433,6 @@ const scheduleStaleTokenCleanup = () => {
   console.log("[Cron] Stale FCM token cleanup scheduled (daily at 03:00 UTC)");
 };
 
-// ==========================================
-// Register all notification cron jobs
-// ==========================================
 export const scheduleNotificationCrons = () => {
   scheduleDailyReminder();
   scheduleWeeklyReport();

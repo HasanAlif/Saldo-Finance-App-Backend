@@ -13,7 +13,6 @@ interface UpdateProfilePayload {
   language?: string;
 }
 
-// Get user profile
 const getProfile = async (userId: string) => {
   const user = await User.findById(userId)
     .select("fullName mobileNumber profilePicture country currency language")
@@ -26,13 +25,11 @@ const getProfile = async (userId: string) => {
   return user;
 };
 
-// Update user profile
 const updateProfile = async (
   userId: string,
   payload: UpdateProfilePayload,
   file?: Express.Multer.File,
 ) => {
-  // Build update object with only provided fields
   const updateData: Record<string, unknown> = {};
 
   if (payload.fullName !== undefined) updateData.fullName = payload.fullName;
@@ -42,16 +39,13 @@ const updateProfile = async (
   if (payload.currency !== undefined) updateData.currency = payload.currency;
   if (payload.language !== undefined) updateData.language = payload.language;
 
-  // Handle profile picture upload
   if (file) {
     const currentUser = await User.findById(userId)
       .select("profilePicture")
       .lean();
 
-    // Delete old image from Cloudinary if exists
     if (currentUser?.profilePicture) {
       try {
-        // Extract public_id from Cloudinary URL
         const urlParts = currentUser.profilePicture.split("/");
         const folderAndFile = urlParts.slice(-2).join("/");
         const publicId = folderAndFile.split(".")[0];
@@ -62,7 +56,6 @@ const updateProfile = async (
       }
     }
 
-    // Upload new image to Cloudinary
     const uploadResult = await fileUploader.uploadToCloudinary(
       file,
       "profile-images",
@@ -70,7 +63,6 @@ const updateProfile = async (
     updateData.profilePicture = uploadResult.Location;
   }
 
-  // Return early if nothing to update
   if (Object.keys(updateData).length === 0) {
     throw new ApiError(httpStatus.BAD_REQUEST, "No data provided to update");
   }
@@ -101,7 +93,6 @@ const changePassword = async (
     throw new ApiError(httpStatus.NOT_FOUND, "User not found");
   }
 
-  // Check if user has a password (Google users might not)
   if (!user.password) {
     throw new ApiError(
       httpStatus.BAD_REQUEST,
@@ -109,13 +100,11 @@ const changePassword = async (
     );
   }
 
-  // Verify old password
   const isMatch = await bcrypt.compare(oldPassword, user.password);
   if (!isMatch) {
     throw new ApiError(httpStatus.UNAUTHORIZED, "Old password is incorrect");
   }
 
-  // Hash new password and update
   const hashedPassword = await bcrypt.hash(newPassword, 12);
   await User.findByIdAndUpdate(userId, { password: hashedPassword });
 

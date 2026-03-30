@@ -13,7 +13,6 @@ interface CreateBudgetPayload {
   status: BudgetStatus;
 }
 
-// Helper: Get custom month date range based on user's start date
 const getCustomMonthDateRange = (
   monthStartDate: number = 1,
 ): { startDate: Date; endDate: Date } => {
@@ -24,7 +23,6 @@ const getCustomMonthDateRange = (
   let endDate: Date;
 
   if (currentDay >= monthStartDate) {
-    // Current cycle: starts this month
     startDate = new Date(
       now.getFullYear(),
       now.getMonth(),
@@ -44,7 +42,6 @@ const getCustomMonthDateRange = (
       999,
     );
   } else {
-    // Current cycle: started last month
     startDate = new Date(
       now.getFullYear(),
       now.getMonth() - 1,
@@ -68,7 +65,6 @@ const getCustomMonthDateRange = (
   return { startDate, endDate };
 };
 
-// Helper: Get custom week date range (7-day periods from cycle start)
 const getCustomWeekDateRange = (
   monthStartDate: number = 1,
 ): { startDate: Date; endDate: Date } => {
@@ -76,25 +72,20 @@ const getCustomWeekDateRange = (
     getCustomMonthDateRange(monthStartDate);
   const now = new Date();
 
-  // Calculate days since cycle start
   const daysSinceCycleStart = Math.floor(
     (now.getTime() - cycleStart.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  // Which week are we in? (0-indexed)
   const weekNumber = Math.max(0, Math.floor(daysSinceCycleStart / 7));
 
-  // Week start
   const startDate = new Date(cycleStart);
   startDate.setDate(cycleStart.getDate() + weekNumber * 7);
   startDate.setHours(0, 0, 0, 0);
 
-  // Week end (6 days after start, but not beyond cycle end)
   const endDate = new Date(startDate);
   endDate.setDate(startDate.getDate() + 6);
   endDate.setHours(23, 59, 59, 999);
 
-  // Don't exceed cycle end
   if (endDate > cycleEnd) {
     endDate.setTime(cycleEnd.getTime());
   }
@@ -102,7 +93,6 @@ const getCustomWeekDateRange = (
   return { startDate, endDate };
 };
 
-// Helper: Format date range for response (e.g., "18 January 2026 - 25 January 2026")
 const formatDateRange = (startDate: Date, endDate: Date): string => {
   const options: Intl.DateTimeFormatOptions = {
     day: "numeric",
@@ -114,7 +104,6 @@ const formatDateRange = (startDate: Date, endDate: Date): string => {
   return `${start} - ${end}`;
 };
 
-// Set user's custom month start date
 const setMonthStartDate = async (userId: string, monthStartDate: number) => {
   const result = await User.findByIdAndUpdate(
     userId,
@@ -143,7 +132,6 @@ const createBudget = async (
   userId: string,
   payload: CreateBudgetPayload,
 ): Promise<IBudget> => {
-  // Check if budget already exists for this category and status
   const existingBudget = await Budget.findOne({
     userId,
     category: payload.category,
@@ -169,17 +157,14 @@ const createBudget = async (
 };
 
 const getBudget = async (userId: string, status: BudgetStatus) => {
-  // Get user's custom month start date
   const user = await User.findById(userId).select("monthStartDate").lean();
   const monthStartDate = user?.monthStartDate || 1;
 
-  // Get date range based on status and user's custom start date
   const { startDate, endDate } =
     status === "WEEKLY"
       ? getCustomWeekDateRange(monthStartDate)
       : getCustomMonthDateRange(monthStartDate);
 
-  // Get budgets for user
   const budgets = await Budget.find({ userId, status })
     .select("category budgetValue currency")
     .lean();
@@ -196,7 +181,6 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
     };
   }
 
-  // Get all unique categories (lowercase for matching)
   const categoryMap = new Map<string, { original: string; currency: string }>();
   budgets.forEach((b) => {
     categoryMap.set(b.category.toLowerCase(), {
@@ -205,7 +189,6 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
     });
   });
 
-  // Aggregate spending by category (case-insensitive) within date range
   const spendingAggregation = await Spending.aggregate([
     {
       $match: {
@@ -226,17 +209,14 @@ const getBudget = async (userId: string, status: BudgetStatus) => {
     },
   ]);
 
-  // Build spending lookup map: "category_currency" -> totalSpent
   const spendingMap = new Map<string, number>();
   spendingAggregation.forEach((s) => {
     const key = `${s._id.category}_${s._id.currency?.toLowerCase() || ""}`;
     spendingMap.set(key, s.totalSpent);
   });
 
-  // Calculate totals
   const totalBudget = budgets.reduce((sum, b) => sum + b.budgetValue, 0);
 
-  // Build response with spending data
   let totalSpent = 0;
   const budgetsWithSpending = budgets.map((b) => {
     const key = `${b.category.toLowerCase()}_${b.currency?.toLowerCase() || ""}`;

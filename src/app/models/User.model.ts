@@ -186,7 +186,6 @@ const UserSchema = new Schema<IUser>(
   },
 );
 
-// Indexes for better query performance (email index created by unique: true)
 UserSchema.index({ role: 1 });
 UserSchema.index({ status: 1 });
 UserSchema.index({ mobileNumber: 1 });

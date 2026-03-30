@@ -52,7 +52,6 @@ async function main() {
     exitHandler();
   });
 
-  // Handling the server shutdown with SIGTERM and SIGINT
   process.on("SIGTERM", () => {
     console.log("SIGTERM signal received. Shutting down gracefully...");
     exitHandler();

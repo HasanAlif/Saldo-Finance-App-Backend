@@ -12,7 +12,6 @@ import { userSearchAbleFields } from "./user.costant";
 import { IUserFilterRequest } from "./user.interface";
 import { fcmTokenService } from "../fcm-token/fcm-token.service";
 
-// Create a new user - Simple registration (fullName, email, mobileNumber, password)
 const createUserIntoDb = async (payload: {
   fullName: string;
   email: string;
@@ -25,7 +24,6 @@ const createUserIntoDb = async (payload: {
   timezone?: string;
   countryCode?: string;
 }) => {
-  // Check if user already exists
   const existingUser = await User.findOne({ email: payload.email });
   if (existingUser) {
     throw new ApiError(
@@ -34,7 +32,6 @@ const createUserIntoDb = async (payload: {
     );
   }
 
-  // Check if mobile number already exists
   const existingMobile = await User.findOne({
     mobileNumber: payload.mobileNumber,
   });
@@ -45,13 +42,11 @@ const createUserIntoDb = async (payload: {
     );
   }
 
-  // Hash password
   const hashedPassword = await bcrypt.hash(
     payload.password,
     Number(config.bcrypt_salt_rounds),
   );
 
-  // Create user
   const createdUser = await User.create({
     fullName: payload.fullName,
     email: payload.email,
@@ -61,7 +56,6 @@ const createUserIntoDb = async (payload: {
     timezone: payload.timezone,
   });
 
-  // Register FCM token if provided with device info
   if (payload.fcmToken && payload.deviceId && payload.deviceType) {
     await fcmTokenService.registerToken(createdUser._id.toString(), {
       fcmToken: payload.fcmToken,
@@ -71,7 +65,6 @@ const createUserIntoDb = async (payload: {
     });
   }
 
-  // Generate token
   const token = jwtHelpers.generateToken(
     {
       id: createdUser._id,
@@ -95,7 +88,6 @@ const createUserIntoDb = async (payload: {
   };
 };
 
-// Get all users with search and pagination
 const getUsersFromDb = async (
   params: IUserFilterRequest,
   options: IPaginationOptions,
@@ -148,12 +140,10 @@ const getUsersFromDb = async (
   };
 };
 
-// Update user profile
 const updateProfile = async (req: Request) => {
   const userId = req.user.id;
   const updateData: Record<string, any> = {};
 
-  // Handle file upload
   if (req.file) {
     const uploaded = await fileUploader.uploadToCloudinary(
       req.file,
@@ -162,7 +152,6 @@ const updateProfile = async (req: Request) => {
     updateData.profilePicture = uploaded.Location;
   }
 
-  // Handle JSON data
   if (req.body.data) {
     const parseData = JSON.parse(req.body.data);
     if (parseData.fullName) updateData.fullName = parseData.fullName;
@@ -186,7 +175,6 @@ const updateProfile = async (req: Request) => {
   return result;
 };
 
-// Update user by ID (Admin)
 const updateUserIntoDb = async (payload: Partial<IUser>, id: string) => {
   const result = await User.findByIdAndUpdate(id, payload, {
     new: true,
@@ -200,7 +188,6 @@ const updateUserIntoDb = async (payload: Partial<IUser>, id: string) => {
   return result;
 };
 
-// Update profile image
 const profileImageChange = async (req: Request) => {
   if (!req.file) {
     throw new ApiError(httpStatus.BAD_REQUEST, "No image provided");
@@ -220,7 +207,6 @@ const profileImageChange = async (req: Request) => {
   return result;
 };
 
-// Soft delete user
 const deleteUserFromDb = async (id: string) => {
   const result = await User.findByIdAndUpdate(
     id,
@@ -235,7 +221,6 @@ const deleteUserFromDb = async (id: string) => {
   return result;
 };
 
-// Account update
 const accountUpdateIntoDb = async (
   payload: Partial<IUser>,
   id: string,

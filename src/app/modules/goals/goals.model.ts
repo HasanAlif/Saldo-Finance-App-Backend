@@ -73,7 +73,6 @@ const GoalsSchema = new Schema<IGoals>(
   },
 );
 
-// Indexes for better query performance
 GoalsSchema.index({ userId: 1, status: 1 });
 GoalsSchema.index({ userId: 1, createdAt: -1 });
 

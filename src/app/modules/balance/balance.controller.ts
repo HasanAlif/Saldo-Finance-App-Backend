@@ -162,7 +162,6 @@ const getIncomeSpendingByMonth = catchAsync(
   async (req: Request, res: Response) => {
     const { month } = req.query;
 
-    // month is optional - if not provided, returns current month summary
     const result = await balanceService.getIncomeSpendingByMonth(
       req.user.id,
       month as string | undefined,

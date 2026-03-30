@@ -6,7 +6,6 @@ import { AccountValidation } from "./balance.validation";
 
 const router = express.Router();
 
-// Create a new account
 router.post(
   "/add-account",
   auth(),
@@ -16,7 +15,6 @@ router.post(
 
 router.get("/total-account", auth(), balanceController.getTotalAccount);
 
-// Add income to account
 router.post(
   "/income",
   auth(),
@@ -24,7 +22,6 @@ router.post(
   balanceController.addIncomeToAccount,
 );
 
-// Add spending to account
 router.post(
   "/spending",
   auth(),
@@ -32,7 +29,6 @@ router.post(
   balanceController.addSpendingToAccount,
 );
 
-// Get daily income and spending summary
 router.get("/daily-summary", auth(), balanceController.getIncomeSpendingByDate);
 
 router.get(
@@ -42,7 +38,6 @@ router.get(
   balanceController.getIncomeSpendingByDateRange,
 );
 
-// Get monthly income and spending summary
 router.get(
   "/monthly-summary",
   auth(),

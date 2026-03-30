@@ -7,10 +7,8 @@ import { appContentValidation } from "./appContent.validation";
 
 const router = express.Router();
 
-// Public routes - accessible without authentication
 router.get("/:type", adminController.getContentByType);
 
-// Admin routes - require authentication
 router.patch(
   "/:type",
   auth(UserRole.ADMIN),

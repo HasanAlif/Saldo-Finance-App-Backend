@@ -44,7 +44,6 @@ const saveFillForYearTemplate = async (
   );
 };
 
-// Create a new Account Balance
 const createAccount = async (
   userId: string,
   payload: Partial<IBalance>,
@@ -152,7 +151,6 @@ const addIncomeToAccount = async (
   const shouldFillForAllYear = Boolean(payload.fillForAllYear);
 
   try {
-    // Verify account exists and belongs to user
     const account = await Balance.findOne({
       _id: accountId,
       userId,
@@ -162,7 +160,6 @@ const addIncomeToAccount = async (
       throw new ApiError(httpStatus.NOT_FOUND, "Account not found");
     }
 
-    // Create income record
     const income = await Income.create(
       [
         {
@@ -180,7 +177,6 @@ const addIncomeToAccount = async (
       { session },
     );
 
-    // Update account balance
     await Balance.findByIdAndUpdate(
       accountId,
       {
@@ -206,7 +202,6 @@ const addIncomeToAccount = async (
 
     await session.commitTransaction();
 
-    // Fire-and-forget: send transaction notification
     notificationServices
       .sendTransactionNotification(
         userId,
@@ -248,7 +243,6 @@ const addSpendingToAccount = async (
   const shouldFillForAllYear = Boolean(payload.fillForAllYear);
 
   try {
-    // Verify account exists and belongs to user
     const account = await Balance.findOne({
       _id: accountId,
       userId,
@@ -258,7 +252,6 @@ const addSpendingToAccount = async (
       throw new ApiError(httpStatus.NOT_FOUND, "Account not found");
     }
 
-    // Check if account has sufficient balance
     if (account.amount < payload.amount) {
       throw new ApiError(
         httpStatus.BAD_REQUEST,
@@ -266,7 +259,6 @@ const addSpendingToAccount = async (
       );
     }
 
-    // Create spending record
     const spending = await Spending.create(
       [
         {
@@ -284,7 +276,6 @@ const addSpendingToAccount = async (
       { session },
     );
 
-    // Update account balance (decrease)
     await Balance.findByIdAndUpdate(
       accountId,
       {
@@ -310,7 +301,6 @@ const addSpendingToAccount = async (
 
     await session.commitTransaction();
 
-    // Fire-and-forget: send transaction notification + check budget alerts
     notificationServices
       .sendTransactionNotification(
         userId,
@@ -341,14 +331,12 @@ const addSpendingToAccount = async (
 };
 
 const getIncomeSpendingByDate = async (userId: string, date: string) => {
-  // Parse the date string
   const targetDate = new Date(date);
 
   if (isNaN(targetDate.getTime())) {
     throw new ApiError(httpStatus.BAD_REQUEST, "Invalid date format");
   }
 
-  // Create start and end of the day in UTC
   const startDate = new Date(
     Date.UTC(
       targetDate.getUTCFullYear(),
@@ -426,9 +414,7 @@ const getIncomeSpendingByDateRange = async (
   };
 };
 
-// Get monthly income and spending summary
 const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
-  // Get user's custom month start date
   const user = await User.findById(userId).select("monthStartDate").lean();
   const monthStartDate = user?.monthStartDate || 1;
 
@@ -436,7 +422,6 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
   let endDate: Date;
 
   if (month) {
-    // Parse month in format "YYYY-MM" (e.g., "2026-01")
     const [year, monthNum] = month.split("-").map(Number);
 
     if (!year || !monthNum || monthNum < 1 || monthNum > 12) {
@@ -446,7 +431,6 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
       );
     }
 
-    // Use custom start date for specified month (UTC)
     startDate = new Date(
       Date.UTC(year, monthNum - 1, monthStartDate, 0, 0, 0, 0),
     );
@@ -454,12 +438,10 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
       Date.UTC(year, monthNum, monthStartDate - 1, 23, 59, 59, 999),
     );
   } else {
-    // Use current cycle based on user's custom start date (UTC)
     const now = new Date();
     const currentDay = now.getUTCDate();
 
     if (currentDay >= monthStartDate) {
-      // Current cycle: starts this month
       startDate = new Date(
         Date.UTC(
           now.getUTCFullYear(),
@@ -483,7 +465,6 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
         ),
       );
     } else {
-      // Current cycle: started last month
       startDate = new Date(
         Date.UTC(
           now.getUTCFullYear(),
@@ -509,7 +490,6 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
     }
   }
 
-  // Calculate total income for the month
   const incomeResult = await Income.aggregate([
     {
       $match: {
@@ -525,7 +505,6 @@ const getIncomeSpendingByMonth = async (userId: string, month?: string) => {
     },
   ]);
 
-  // Calculate total spending for the month
   const spendingResult = await Spending.aggregate([
     {
       $match: {

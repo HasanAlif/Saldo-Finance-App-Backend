@@ -1,6 +1,4 @@
-// Function to parse Mongoose validation error messages
 const parseMongooseValidationError = (error: any) => {
-  // Handle Mongoose ValidationError
   if (error.name === "ValidationError") {
     const errorMessages: string[] = [];
 
@@ -13,29 +11,29 @@ const parseMongooseValidationError = (error: any) => {
           break;
         case "min":
           errorMessages.push(
-            `${field} must be at least ${fieldError.properties.min} characters`
+            `${field} must be at least ${fieldError.properties.min} characters`,
           );
           break;
         case "max":
           errorMessages.push(
-            `${field} must be at most ${fieldError.properties.max} characters`
+            `${field} must be at most ${fieldError.properties.max} characters`,
           );
           break;
         case "minlength":
           errorMessages.push(
-            `${field} must be at least ${fieldError.properties.minlength} characters long`
+            `${field} must be at least ${fieldError.properties.minlength} characters long`,
           );
           break;
         case "maxlength":
           errorMessages.push(
-            `${field} must be at most ${fieldError.properties.maxlength} characters long`
+            `${field} must be at most ${fieldError.properties.maxlength} characters long`,
           );
           break;
         case "enum":
           errorMessages.push(
             `${field} must be one of: ${fieldError.properties.enumValues.join(
-              ", "
-            )}`
+              ", ",
+            )}`,
           );
           break;
         case "unique":
@@ -52,7 +50,6 @@ const parseMongooseValidationError = (error: any) => {
     return errorMessages.join("; ");
   }
 
-  // Handle Mongoose CastError (invalid ObjectId, wrong data types)
   if (error.name === "CastError") {
     if (error.kind === "ObjectId") {
       return `Invalid ${error.path}: ${error.value} is not a valid ID`;
@@ -62,18 +59,15 @@ const parseMongooseValidationError = (error: any) => {
     }, received ${typeof error.value}`;
   }
 
-  // Handle duplicate key error (MongoDB 11000)
   if (error.code === 11000) {
     const field = Object.keys(error.keyPattern)[0];
     return `${field} already exists`;
   }
 
-  // Handle other MongoDB errors
   if (error.name === "MongoError" || error.name === "MongoServerError") {
     return error.message;
   }
 
-  // Fallback for unknown errors
   return error.message || "Unknown validation error occurred";
 };
 

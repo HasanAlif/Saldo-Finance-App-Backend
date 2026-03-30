@@ -7,10 +7,8 @@ import { fileUploader } from "../../../helpars/fileUploader";
 
 const router = express.Router();
 
-// Get user profile
 router.get("/", auth(), profileController.getProfile);
 
-// Update user profile (with optional image upload)
 router.patch(
   "/",
   auth(),
@@ -18,7 +16,6 @@ router.patch(
   profileController.updateProfile,
 );
 
-// Change password
 router.post(
   "/change-password",
   auth(),
