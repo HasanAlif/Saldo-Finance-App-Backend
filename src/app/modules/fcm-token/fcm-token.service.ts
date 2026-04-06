@@ -119,7 +119,7 @@ const deleteToken = async (userId: string, rawDeviceId: string) => {
 
   const result = await User.updateOne(
     { _id: userId },
-    { $pull: { fcmTokens: { deviceId } } },
+    { $pull: { fcmTokens: { deviceId: { $in: [deviceId, rawDeviceId] } } } },
   );
 
   if (result.matchedCount === 0) {

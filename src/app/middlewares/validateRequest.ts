@@ -15,8 +15,17 @@ const validateRequest =
   (schema: AnyZodObject | ZodEffects<any>) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const schemaShape =
-        "_def" in schema && "shape" in schema._def ? schema._def.shape() : null;
+      let schemaShape = null;
+      if ("_def" in schema && "shape" in schema._def) {
+        schemaShape = schema._def.shape();
+      } else if (
+        "_def" in schema &&
+        "schema" in schema._def &&
+        schema._def.schema &&
+        "shape" in schema._def.schema._def
+      ) {
+        schemaShape = schema._def.schema._def.shape();
+      }
 
       const bodyField = schemaShape?.body;
       const bodyIsObjectWrapper =

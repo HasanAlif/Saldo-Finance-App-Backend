@@ -18,7 +18,7 @@ const registerToken = catchAsync(async (req: Request, res: Response) => {
 const deleteToken = catchAsync(async (req: Request, res: Response) => {
   const result = await fcmTokenService.deleteToken(
     req.user.id,
-    req.body.deviceId,
+    req.body?.deviceId || (req.query?.deviceId as string),
   );
 
   sendResponse(res, {

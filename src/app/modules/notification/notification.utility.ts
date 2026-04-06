@@ -1,5 +1,6 @@
 import { NotificationType, User, Notification } from "../../models";
 import admin from "./firebaseAdmin";
+import axios from "axios";
 
 interface NotificationPayload {
   userId: string;
@@ -16,14 +17,30 @@ export const sendPushNotification = async (
   data?: Record<string, any>,
 ): Promise<string | null> => {
   try {
+    const stringifiedData = data
+      ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
+      : undefined;
+
+    if (
+      fcmToken.startsWith("ExponentPushToken[") ||
+      fcmToken.startsWith("ExpoPushToken[")
+    ) {
+      const response = await axios.post(
+        "https://exp.host/--/api/v2/push/send",
+        {
+          to: fcmToken,
+          title,
+          body,
+          data: stringifiedData,
+        },
+      );
+      return response.data?.data?.id || "expo-sent";
+    }
+
     const response = await admin.messaging().send({
       token: fcmToken,
       notification: { title, body },
-      data: data
-        ? Object.fromEntries(
-            Object.entries(data).map(([k, v]) => [k, String(v)]),
-          )
-        : undefined,
+      data: stringifiedData,
     });
     return response;
   } catch (error: any) {
@@ -48,44 +65,76 @@ export const createAndSendNotification = async (
   const user = await User.findById(userId).select("+fcmTokens").lean();
 
   if (user?.fcmTokens?.length) {
-    const tokens = user.fcmTokens.map((t) => t.token);
-    try {
-      const response = await admin.messaging().sendEachForMulticast({
-        tokens,
-        notification: { title, body },
-        data: {
-          notificationId: notification._id.toString(),
-          type,
-          ...(data
-            ? Object.fromEntries(
-                Object.entries(data).map(([k, v]) => [k, String(v)]),
-              )
-            : {}),
-        },
-      });
+    const expoTokens = user.fcmTokens
+      .map((t) => t.token)
+      .filter(
+        (t) =>
+          t.startsWith("ExponentPushToken[") || t.startsWith("ExpoPushToken["),
+      );
+    const fcmTokens = user.fcmTokens
+      .map((t) => t.token)
+      .filter(
+        (t) =>
+          !t.startsWith("ExponentPushToken[") &&
+          !t.startsWith("ExpoPushToken["),
+      );
 
-      if (response.failureCount > 0) {
-        const invalidTokens: string[] = [];
-        response.responses.forEach((res, idx) => {
-          if (!res.success) {
-            const errorCode = res.error?.code;
-            if (
-              errorCode === "messaging/invalid-registration-token" ||
-              errorCode === "messaging/registration-token-not-registered"
-            ) {
-              invalidTokens.push(tokens[idx]);
-            }
-          }
-        });
-        if (invalidTokens.length) {
-          await User.updateOne(
-            { _id: userId },
-            { $pull: { fcmTokens: { token: { $in: invalidTokens } } } },
-          );
-        }
+    const stringifiedData = {
+      notificationId: notification._id.toString(),
+      type,
+      ...(data
+        ? Object.fromEntries(
+            Object.entries(data).map(([k, v]) => [k, String(v)]),
+          )
+        : {}),
+    };
+
+    if (expoTokens.length > 0) {
+      try {
+        const messages = expoTokens.map((token) => ({
+          to: token,
+          sound: "default",
+          title,
+          body,
+          data: stringifiedData,
+        }));
+        await axios.post("https://exp.host/--/api/v2/push/send", messages);
+      } catch (error: any) {
+        console.error("Expo push notification error:", error.message);
       }
-    } catch (error: any) {
-      console.error("Push notification error:", error.message);
+    }
+
+    if (fcmTokens.length > 0) {
+      try {
+        const response = await admin.messaging().sendEachForMulticast({
+          tokens: fcmTokens,
+          notification: { title, body },
+          data: stringifiedData,
+        });
+
+        if (response.failureCount > 0) {
+          const invalidTokens: string[] = [];
+          response.responses.forEach((res, idx) => {
+            if (!res.success) {
+              const errorCode = res.error?.code;
+              if (
+                errorCode === "messaging/invalid-registration-token" ||
+                errorCode === "messaging/registration-token-not-registered"
+              ) {
+                invalidTokens.push(fcmTokens[idx]);
+              }
+            }
+          });
+          if (invalidTokens.length) {
+            await User.updateOne(
+              { _id: userId },
+              { $pull: { fcmTokens: { token: { $in: invalidTokens } } } },
+            );
+          }
+        }
+      } catch (error: any) {
+        console.error("Firebase push notification error:", error.message);
+      }
     }
   }
 };
@@ -109,64 +158,94 @@ export const sendBulkPushNotification = async (
   if (!users.length) return { sent: 0, failed: 0 };
 
   const tokenUserMap: Map<string, string> = new Map();
-  const allTokens: string[] = [];
+  const expoTokens: string[] = [];
+  const fcmTokens: string[] = [];
 
   users.forEach((user) => {
     (user.fcmTokens || []).forEach((t) => {
       tokenUserMap.set(t.token, user._id.toString());
-      allTokens.push(t.token);
+      if (
+        t.token.startsWith("ExponentPushToken[") ||
+        t.token.startsWith("ExpoPushToken[")
+      ) {
+        expoTokens.push(t.token);
+      } else {
+        fcmTokens.push(t.token);
+      }
     });
   });
 
-  if (!allTokens.length) return { sent: 0, failed: 0 };
+  if (!expoTokens.length && !fcmTokens.length) return { sent: 0, failed: 0 };
 
-  try {
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens: allTokens,
-      notification: { title, body },
-      data: data
-        ? Object.fromEntries(
-            Object.entries(data).map(([k, v]) => [k, String(v)]),
-          )
-        : undefined,
-    });
+  const stringifiedData = data
+    ? Object.fromEntries(Object.entries(data).map(([k, v]) => [k, String(v)]))
+    : undefined;
 
-    if (response.failureCount > 0) {
-      const invalidTokensToRemove: Array<{ userId: string; token: string }> =
-        [];
-      response.responses.forEach((res, idx) => {
-        if (!res.success) {
-          const errorCode = res.error?.code;
-          if (
-            errorCode === "messaging/invalid-registration-token" ||
-            errorCode === "messaging/registration-token-not-registered"
-          ) {
-            const token = allTokens[idx];
-            const userId = tokenUserMap.get(token);
-            if (userId) {
-              invalidTokensToRemove.push({ userId, token });
-            }
-          }
-        }
+  let sent = 0;
+  let failed = 0;
+
+  if (expoTokens.length > 0) {
+    try {
+      const messages = expoTokens.map((token) => ({
+        to: token,
+        sound: "default",
+        title,
+        body,
+        data: stringifiedData,
+      }));
+      await axios.post("https://exp.host/--/api/v2/push/send", messages);
+      sent += expoTokens.length;
+    } catch (error: any) {
+      console.error("Bulk Expo push error:", error.message);
+      failed += expoTokens.length;
+    }
+  }
+
+  if (fcmTokens.length > 0) {
+    try {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: fcmTokens,
+        notification: { title, body },
+        data: stringifiedData,
       });
 
-      if (invalidTokensToRemove.length) {
-        const bulkOps = invalidTokensToRemove.map(({ userId, token }) => ({
-          updateOne: {
-            filter: { _id: userId },
-            update: { $pull: { fcmTokens: { token } } },
-          },
-        }));
-        await User.bulkWrite(bulkOps);
-      }
-    }
+      sent += response.successCount;
+      failed += response.failureCount;
 
-    return {
-      sent: response.successCount,
-      failed: response.failureCount,
-    };
-  } catch (error: any) {
-    console.error("Bulk push error:", error.message);
-    return { sent: 0, failed: allTokens.length };
+      if (response.failureCount > 0) {
+        const invalidTokensToRemove: Array<{ userId: string; token: string }> =
+          [];
+        response.responses.forEach((res, idx) => {
+          if (!res.success) {
+            const errorCode = res.error?.code;
+            if (
+              errorCode === "messaging/invalid-registration-token" ||
+              errorCode === "messaging/registration-token-not-registered"
+            ) {
+              const token = fcmTokens[idx];
+              const userId = tokenUserMap.get(token);
+              if (userId) {
+                invalidTokensToRemove.push({ userId, token });
+              }
+            }
+          }
+        });
+
+        if (invalidTokensToRemove.length) {
+          const bulkOps = invalidTokensToRemove.map(({ userId, token }) => ({
+            updateOne: {
+              filter: { _id: userId },
+              update: { $pull: { fcmTokens: { token } } },
+            },
+          }));
+          await User.bulkWrite(bulkOps);
+        }
+      }
+    } catch (error: any) {
+      console.error("Bulk Firebase push error:", error.message);
+      failed += fcmTokens.length;
+    }
   }
+
+  return { sent, failed };
 };

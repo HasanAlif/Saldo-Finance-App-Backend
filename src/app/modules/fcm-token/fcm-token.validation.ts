@@ -9,9 +9,22 @@ const registerTokenSchema = z.object({
   deviceName: z.string().max(100).optional(),
 });
 
-const deleteTokenSchema = z.object({
-  deviceId: z.string().min(1, "Device ID is required"),
-});
+const deleteTokenSchema = z
+  .object({
+    body: z
+      .object({
+        deviceId: z.string().optional(),
+      })
+      .optional(),
+    query: z
+      .object({
+        deviceId: z.string().optional(),
+      })
+      .optional(),
+  })
+  .refine((data) => data.body?.deviceId || data.query?.deviceId, {
+    message: "Device ID is required in body or query",
+  });
 
 export const fcmTokenValidation = {
   registerTokenSchema,
