@@ -31,9 +31,19 @@ export const sendPushNotification = async (
           to: fcmToken,
           title,
           body,
+          sound: "default",
           data: stringifiedData,
+          _displayInForeground: true,
+        },
+        {
+          headers: {
+            Accept: "application/json",
+            "Accept-encoding": "application/json",
+            "Content-Type": "application/json",
+          },
         },
       );
+      console.log("Single Expo Push Response:", response.data);
       return response.data?.data?.id || "expo-sent";
     }
 
@@ -97,10 +107,25 @@ export const createAndSendNotification = async (
           title,
           body,
           data: stringifiedData,
+          _displayInForeground: true,
         }));
-        await axios.post("https://exp.host/--/api/v2/push/send", messages);
+        const expoRes = await axios.post(
+          "https://exp.host/--/api/v2/push/send",
+          messages,
+          {
+            headers: {
+              Accept: "application/json",
+              "Accept-encoding": "application/json",
+              "Content-Type": "application/json",
+            },
+          },
+        );
+        console.log("Expo Push Response:", expoRes.data);
       } catch (error: any) {
-        console.error("Expo push notification error:", error.message);
+        console.error(
+          "Expo push notification error:",
+          error.response?.data || error.message,
+        );
       }
     }
 
@@ -192,11 +217,26 @@ export const sendBulkPushNotification = async (
         title,
         body,
         data: stringifiedData,
+        _displayInForeground: true,
       }));
-      await axios.post("https://exp.host/--/api/v2/push/send", messages);
+      const expoRes = await axios.post(
+        "https://exp.host/--/api/v2/push/send",
+        messages,
+        {
+          headers: {
+            Accept: "application/json",
+            "Accept-encoding": "application/json",
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      console.log("Bulk Expo Push Response:", expoRes.data);
       sent += expoTokens.length;
     } catch (error: any) {
-      console.error("Bulk Expo push error:", error.message);
+      console.error(
+        "Bulk Expo push error:",
+        error.response?.data || error.message,
+      );
       failed += expoTokens.length;
     }
   }
