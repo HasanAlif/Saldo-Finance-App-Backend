@@ -1,7 +1,18 @@
 import { z } from "zod";
 
+const expoTokenRegex = /^(ExponentPushToken|ExpoPushToken)\[[^\]]+\]$/;
+const fcmTokenRegex = /^[A-Za-z0-9:_-]{40,}$/;
+
+const pushTokenSchema = z
+  .string()
+  .trim()
+  .refine(
+    (token) => expoTokenRegex.test(token) || fcmTokenRegex.test(token),
+    "Invalid push token format",
+  );
+
 const registerTokenSchema = z.object({
-  fcmToken: z.string().min(1, "FCM token is required"),
+  fcmToken: pushTokenSchema,
   deviceId: z.string().min(1, "Device ID is required"),
   deviceType: z.enum(["ios", "android", "web"], {
     errorMap: () => ({ message: "Device type must be ios, android, or web" }),

@@ -1,6 +1,18 @@
 import { z } from "zod";
 import { AuthProvider } from "../../models";
 
+const expoTokenRegex = /^(ExponentPushToken|ExpoPushToken)\[[^\]]+\]$/;
+const fcmTokenRegex = /^[A-Za-z0-9:_-]{40,}$/;
+
+const optionalPushTokenSchema = z
+  .string()
+  .trim()
+  .refine(
+    (token) => expoTokenRegex.test(token) || fcmTokenRegex.test(token),
+    "Invalid push token format",
+  )
+  .optional();
+
 const changePasswordValidationSchema = z.object({
   oldPassword: z.string().min(1, "Current password is required"),
   newPassword: z.string().min(8, "New password must be at least 8 characters"),
@@ -37,7 +49,7 @@ const socialLoginValidationSchema = z.object({
   profileImage: z.string().optional(),
   provider: z.nativeEnum(AuthProvider),
   providerId: z.string().min(1, "Provider ID is required"),
-  fcmToken: z.string().optional(),
+  fcmToken: optionalPushTokenSchema,
   deviceId: z.string().optional(),
   deviceType: z
     .enum(["ios", "android", "web"], {

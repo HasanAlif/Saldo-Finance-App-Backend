@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import httpStatus from "http-status";
+import axios from "axios";
 import ApiError from "../../../errors/ApiErrors";
 import { Notification, NotificationType, User } from "../../models";
 import { Budget } from "../budget/budget.model";
@@ -18,8 +19,11 @@ interface CreateNotificationPayload {
 const INVALID_TOKEN_ERROR_CODES = new Set([
   "messaging/invalid-registration-token",
   "messaging/registration-token-not-registered",
+  "messaging/invalid-recipient",
 ]);
 const MAX_FCM_MULTICAST_TOKENS = 500;
+const MAX_EXPO_PUSH_BATCH_SIZE = 100;
+const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const BROADCAST_USER_BATCH_SIZE = Math.max(
   100,
   Number(process.env.NOTIFICATION_USER_BATCH_SIZE) || 2000,
@@ -30,6 +34,19 @@ interface BulkNotificationResult {
   pushSent: number;
   pushFailed: number;
   pushSkipped: number;
+}
+
+interface ProviderSendResult {
+  success: number;
+  failed: number;
+  skipped: number;
+  invalidTokens: Array<{ userId: string; token: string }>;
+}
+
+interface ClassifiedTokens {
+  expoTokens: string[];
+  fcmTokens: string[];
+  unknownTokens: string[];
 }
 
 const createFcmData = (
@@ -43,6 +60,203 @@ const createFcmData = (
     }
   }
   return fcmData;
+};
+
+const isExpoToken = (token: string): boolean => {
+  return (
+    token.startsWith("ExponentPushToken[") || token.startsWith("ExpoPushToken[")
+  );
+};
+
+const isLikelyFcmToken = (token: string): boolean => {
+  if (!token || typeof token !== "string") {
+    return false;
+  }
+
+  const trimmed = token.trim();
+  if (!trimmed || trimmed.includes(" ")) {
+    return false;
+  }
+
+  return trimmed.includes(":") || trimmed.length >= 40;
+};
+
+const classifyTokens = (tokens: string[]): ClassifiedTokens => {
+  const expoTokens: string[] = [];
+  const fcmTokens: string[] = [];
+  const unknownTokens: string[] = [];
+
+  for (const token of tokens) {
+    if (isExpoToken(token)) {
+      expoTokens.push(token);
+      continue;
+    }
+
+    if (isLikelyFcmToken(token)) {
+      fcmTokens.push(token);
+      continue;
+    }
+
+    unknownTokens.push(token);
+  }
+
+  return { expoTokens, fcmTokens, unknownTokens };
+};
+
+const normalizeExpoTickets = (payload: any): any[] => {
+  if (Array.isArray(payload?.data)) {
+    return payload.data;
+  }
+
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+
+  if (payload?.data) {
+    return [payload.data];
+  }
+
+  return [];
+};
+
+const isExpoInvalidTokenError = (ticket: any): boolean => {
+  const detailsError = String(ticket?.details?.error || "").toLowerCase();
+  const message = String(ticket?.message || "").toLowerCase();
+
+  return (
+    detailsError.includes("devicenotregistered") ||
+    message.includes("device not registered") ||
+    message.includes("not registered") ||
+    message.includes("invalid")
+  );
+};
+
+const sendExpoNotifications = async (
+  tokens: string[],
+  title: string,
+  body: string,
+  data: Record<string, string>,
+  tokenUserMap: Map<string, string>,
+): Promise<ProviderSendResult> => {
+  if (!tokens.length) {
+    return { success: 0, failed: 0, skipped: 0, invalidTokens: [] };
+  }
+
+  let success = 0;
+  let failed = 0;
+  const invalidTokens: Array<{ userId: string; token: string }> = [];
+
+  for (let i = 0; i < tokens.length; i += MAX_EXPO_PUSH_BATCH_SIZE) {
+    const batchTokens = tokens.slice(i, i + MAX_EXPO_PUSH_BATCH_SIZE);
+
+    try {
+      const messages = batchTokens.map((token) => ({
+        to: token,
+        title,
+        body,
+        sound: "default",
+        data,
+      }));
+
+      const expoRes = await axios.post(EXPO_PUSH_URL, messages, {
+        headers: {
+          Accept: "application/json",
+          "Accept-encoding": "gzip, deflate",
+          "Content-Type": "application/json",
+        },
+      });
+
+      const tickets = normalizeExpoTickets(expoRes.data);
+
+      batchTokens.forEach((token, idx) => {
+        const ticket = tickets[idx];
+
+        if (!ticket || ticket.status === "error") {
+          failed += 1;
+
+          if (isExpoInvalidTokenError(ticket)) {
+            const userId = tokenUserMap.get(token);
+            if (userId) {
+              invalidTokens.push({ userId, token });
+            }
+          }
+
+          return;
+        }
+
+        success += 1;
+      });
+    } catch (error: any) {
+      failed += batchTokens.length;
+      console.error(
+        `[PUSH][EXPO] batch send failed: ${error.response?.data?.errors?.[0]?.message || error.message}`,
+      );
+    }
+  }
+
+  return { success, failed, skipped: 0, invalidTokens };
+};
+
+const sendFcmNotifications = async (
+  tokens: string[],
+  title: string,
+  body: string,
+  data: Record<string, string>,
+  tokenUserMap: Map<string, string>,
+): Promise<ProviderSendResult> => {
+  if (!tokens.length) {
+    return { success: 0, failed: 0, skipped: 0, invalidTokens: [] };
+  }
+
+  if (!isFirebaseReady()) {
+    console.error(
+      `[PUSH][FCM] skipped. Firebase not ready: ${getFirebaseInitError() ?? "unknown initialization error"}`,
+    );
+    return {
+      success: 0,
+      failed: 0,
+      skipped: tokens.length,
+      invalidTokens: [],
+    };
+  }
+
+  let success = 0;
+  let failed = 0;
+  const invalidTokens: Array<{ userId: string; token: string }> = [];
+
+  for (let i = 0; i < tokens.length; i += MAX_FCM_MULTICAST_TOKENS) {
+    const batchTokens = tokens.slice(i, i + MAX_FCM_MULTICAST_TOKENS);
+
+    try {
+      const response = await admin.messaging().sendEachForMulticast({
+        tokens: batchTokens,
+        notification: { title, body },
+        data,
+      });
+
+      success += response.successCount;
+      failed += response.failureCount;
+
+      response.responses.forEach((res, idx) => {
+        if (
+          !res.success &&
+          INVALID_TOKEN_ERROR_CODES.has(res.error?.code || "")
+        ) {
+          const token = batchTokens[idx];
+          const userId = tokenUserMap.get(token);
+
+          if (userId) {
+            invalidTokens.push({ userId, token });
+          }
+        }
+      });
+    } catch (error: any) {
+      failed += batchTokens.length;
+      console.error(`[PUSH][FCM] batch send failed: ${error.message}`);
+    }
+  }
+
+  return { success, failed, skipped: 0, invalidTokens };
 };
 
 const sendBulkNotificationToTargetIds = async (
@@ -83,18 +297,6 @@ const sendBulkNotificationToTargetIds = async (
     };
   }
 
-  if (!isFirebaseReady()) {
-    console.error(
-      `[FCM] Bulk push skipped. Firebase not ready: ${getFirebaseInitError() ?? "unknown initialization error"}`,
-    );
-    return {
-      successCount: notifications.length,
-      pushSent: 0,
-      pushFailed: 0,
-      pushSkipped: uniqueTargetIds.length,
-    };
-  }
-
   const tokenUserMap: Map<string, string> = new Map();
   const allTokens: string[] = [];
 
@@ -116,61 +318,67 @@ const sendBulkNotificationToTargetIds = async (
     };
   }
 
+  const { expoTokens, fcmTokens, unknownTokens } = classifyTokens(allTokens);
   const fcmData = createFcmData(type, data);
 
-  try {
-    let totalSuccess = 0;
-    let totalFailure = 0;
-    const invalidTokensToRemove: Array<{ userId: string; token: string }> = [];
+  const expoResult = await sendExpoNotifications(
+    expoTokens,
+    title,
+    body,
+    fcmData,
+    tokenUserMap,
+  );
 
-    for (let i = 0; i < allTokens.length; i += MAX_FCM_MULTICAST_TOKENS) {
-      const batchTokens = allTokens.slice(i, i + MAX_FCM_MULTICAST_TOKENS);
+  const fcmResult = await sendFcmNotifications(
+    fcmTokens,
+    title,
+    body,
+    fcmData,
+    tokenUserMap,
+  );
 
-      const response = await admin.messaging().sendEachForMulticast({
-        tokens: batchTokens,
-        notification: { title, body },
-        data: fcmData,
-      });
+  const invalidTokensToRemove = [
+    ...expoResult.invalidTokens,
+    ...fcmResult.invalidTokens,
+  ];
 
-      totalSuccess += response.successCount;
-      totalFailure += response.failureCount;
+  if (invalidTokensToRemove.length) {
+    const dedupedInvalidTokens = Array.from(
+      new Map(
+        invalidTokensToRemove.map((item) => [
+          `${item.userId}:${item.token}`,
+          item,
+        ]),
+      ).values(),
+    );
 
-      response.responses.forEach((res, idx) => {
-        if (
-          !res.success &&
-          INVALID_TOKEN_ERROR_CODES.has(res.error?.code || "")
-        ) {
-          const token = batchTokens[idx];
-          const userId = tokenUserMap.get(token);
-          if (userId) {
-            invalidTokensToRemove.push({ userId, token });
-          }
-        }
-      });
-    }
-
-    if (invalidTokensToRemove.length) {
-      await fcmTokenService.removeInvalidTokensBulk(invalidTokensToRemove);
-      console.log(
-        `[FCM] Removed ${invalidTokensToRemove.length} invalid token(s) from bulk send`,
-      );
-    }
-
-    return {
-      successCount: notifications.length,
-      pushSent: totalSuccess,
-      pushFailed: totalFailure,
-      pushSkipped: noTokenUserCount,
-    };
-  } catch (error: any) {
-    console.error("Bulk push notification failed:", error.message);
-    return {
-      successCount: notifications.length,
-      pushSent: 0,
-      pushFailed: allTokens.length,
-      pushSkipped: noTokenUserCount,
-    };
+    await fcmTokenService.removeInvalidTokensBulk(dedupedInvalidTokens);
+    console.log(
+      `[PUSH] Removed ${dedupedInvalidTokens.length} invalid token(s) from bulk send`,
+    );
   }
+
+  if (unknownTokens.length) {
+    console.warn(
+      `[PUSH] Bulk send skipped ${unknownTokens.length} token(s) with unknown format`,
+    );
+  }
+
+  const pushSent = expoResult.success + fcmResult.success;
+  const pushFailed = expoResult.failed + fcmResult.failed;
+  const pushSkipped =
+    noTokenUserCount + unknownTokens.length + fcmResult.skipped;
+
+  console.log(
+    `[PUSH] Bulk send summary -> users:${uniqueTargetIds.length}, expo:${expoTokens.length}, fcm:${fcmTokens.length}, sent:${pushSent}, failed:${pushFailed}, skipped:${pushSkipped}`,
+  );
+
+  return {
+    successCount: notifications.length,
+    pushSent,
+    pushFailed,
+    pushSkipped,
+  };
 };
 
 const escapeRegex = (str: string): string => {
@@ -270,14 +478,16 @@ const sendNotification = async (payload: CreateNotificationPayload) => {
   const user = await User.findById(userId).select("+fcmTokens").lean();
 
   if (user?.fcmTokens?.length) {
-    if (!isFirebaseReady()) {
-      console.error(
-        `[FCM] Push skipped for user ${userId}. Firebase not ready: ${getFirebaseInitError() ?? "unknown initialization error"}`,
-      );
-      return notification;
-    }
+    const tokenUserMap: Map<string, string> = new Map();
+    const tokens = Array.from(
+      new Set(user.fcmTokens.map((t) => t.token.trim())),
+    );
 
-    const tokens = Array.from(new Set(user.fcmTokens.map((t) => t.token)));
+    tokens.forEach((token) => {
+      tokenUserMap.set(token, userId);
+    });
+
+    const { expoTokens, fcmTokens, unknownTokens } = classifyTokens(tokens);
 
     const fcmData: Record<string, string> = {
       notificationId: notification._id.toString(),
@@ -289,42 +499,52 @@ const sendNotification = async (payload: CreateNotificationPayload) => {
       }
     }
 
-    try {
-      const invalidTokens: string[] = [];
+    const expoResult = await sendExpoNotifications(
+      expoTokens,
+      title,
+      body,
+      fcmData,
+      tokenUserMap,
+    );
 
-      for (let i = 0; i < tokens.length; i += MAX_FCM_MULTICAST_TOKENS) {
-        const batchTokens = tokens.slice(i, i + MAX_FCM_MULTICAST_TOKENS);
-        const response = await admin.messaging().sendEachForMulticast({
-          tokens: batchTokens,
-          notification: { title, body },
-          data: fcmData,
-        });
+    const fcmResult = await sendFcmNotifications(
+      fcmTokens,
+      title,
+      body,
+      fcmData,
+      tokenUserMap,
+    );
 
-        if (response.failureCount > 0) {
-          response.responses.forEach((res, idx) => {
-            if (
-              !res.success &&
-              INVALID_TOKEN_ERROR_CODES.has(res.error?.code || "")
-            ) {
-              invalidTokens.push(batchTokens[idx]);
-            }
-          });
-        }
-      }
+    const invalidTokensToRemove = [
+      ...expoResult.invalidTokens,
+      ...fcmResult.invalidTokens,
+    ];
 
-      if (invalidTokens.length) {
-        await fcmTokenService.removeInvalidTokensBulk(
-          invalidTokens.map((token) => ({ userId, token })),
-        );
-        console.log(
-          `[FCM] Removed ${invalidTokens.length} invalid token(s) for user ${userId}`,
-        );
-      }
-    } catch (error: any) {
-      console.error(
-        `[FCM] Push notification failed for user ${userId}: ${error.message}`,
+    if (invalidTokensToRemove.length) {
+      const dedupedInvalidTokens = Array.from(
+        new Map(
+          invalidTokensToRemove.map((item) => [
+            `${item.userId}:${item.token}`,
+            item,
+          ]),
+        ).values(),
+      );
+
+      await fcmTokenService.removeInvalidTokensBulk(dedupedInvalidTokens);
+      console.log(
+        `[PUSH] Removed ${dedupedInvalidTokens.length} invalid token(s) for user ${userId}`,
       );
     }
+
+    if (unknownTokens.length) {
+      console.warn(
+        `[PUSH] User ${userId} has ${unknownTokens.length} token(s) with unknown format`,
+      );
+    }
+
+    console.log(
+      `[PUSH] User ${userId} push summary -> expo:${expoTokens.length}, fcm:${fcmTokens.length}, sent:${expoResult.success + fcmResult.success}, failed:${expoResult.failed + fcmResult.failed}, skipped:${unknownTokens.length + fcmResult.skipped}`,
+    );
   } else {
     console.warn(
       `[FCM] Push skipped for user ${userId}. No registered tokens.`,

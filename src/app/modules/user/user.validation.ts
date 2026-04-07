@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+const expoTokenRegex = /^(ExponentPushToken|ExpoPushToken)\[[^\]]+\]$/;
+const fcmTokenRegex = /^[A-Za-z0-9:_-]{40,}$/;
+
+const optionalPushTokenSchema = z
+  .string()
+  .trim()
+  .refine(
+    (token) => expoTokenRegex.test(token) || fcmTokenRegex.test(token),
+    "Invalid push token format",
+  )
+  .optional();
+
 const CreateUserValidationSchema = z
   .object({
     fullName: z
@@ -10,7 +22,7 @@ const CreateUserValidationSchema = z
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(8),
     mobileNumber: z.string().optional(),
-    fcmToken: z.string().optional(),
+    fcmToken: optionalPushTokenSchema,
     deviceId: z.string().optional(),
     deviceType: z
       .enum(["ios", "android", "web"], {
@@ -30,7 +42,7 @@ const CreateUserValidationSchema = z
 const UserLoginValidationSchema = z.object({
   email: z.string().email("Please provide a valid email"),
   password: z.string().min(1, "Password is required"),
-  fcmToken: z.string().optional(),
+  fcmToken: optionalPushTokenSchema,
   deviceId: z.string().optional(),
   deviceType: z
     .enum(["ios", "android", "web"], {

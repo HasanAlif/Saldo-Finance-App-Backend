@@ -10,8 +10,8 @@ const initializeFirebase = () => {
     return admin;
   }
 
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const projectId = process.env.FIREBASE_PROJECT_ID?.trim();
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL?.trim();
   const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
   if (!projectId || !clientEmail || !privateKey) {
@@ -29,10 +29,13 @@ const initializeFirebase = () => {
         clientEmail,
         privateKey,
       }),
+      projectId,
     });
     firebaseReady = true;
     firebaseInitError = null;
-    console.log("Firebase Admin SDK initialized successfully");
+    console.log(
+      `Firebase Admin SDK initialized successfully for project ${projectId}`,
+    );
   } catch (error: any) {
     firebaseReady = false;
     firebaseInitError = error.message;
