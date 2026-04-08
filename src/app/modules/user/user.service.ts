@@ -7,6 +7,7 @@ import ApiError from "../../../errors/ApiErrors";
 import { fileUploader } from "../../../helpars/fileUploader";
 import { jwtHelpers } from "../../../helpars/jwtHelpers";
 import { paginationHelper } from "../../../helpars/paginationHelper";
+import { cleanObject } from "../../../helpars/cleanObject";
 import { IPaginationOptions } from "../../../interfaces/paginations";
 import { userSearchAbleFields } from "./user.costant";
 import { IUserFilterRequest } from "./user.interface";
@@ -47,7 +48,7 @@ const createUserIntoDb = async (payload: {
     Number(config.bcrypt_salt_rounds),
   );
 
-  const createdUser = await User.create({
+  const userData = cleanObject({
     fullName: payload.fullName,
     email: payload.email,
     mobileNumber: payload.mobileNumber,
@@ -55,6 +56,8 @@ const createUserIntoDb = async (payload: {
     password: hashedPassword,
     timezone: payload.timezone,
   });
+
+  const createdUser = await User.create(userData);
 
   if (payload.fcmToken && payload.deviceId && payload.deviceType) {
     await fcmTokenService.registerToken(createdUser._id.toString(), {

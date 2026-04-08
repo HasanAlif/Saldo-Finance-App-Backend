@@ -7,7 +7,8 @@ const optionalPushTokenSchema = z
   .string()
   .trim()
   .refine(
-    (token) => expoTokenRegex.test(token) || fcmTokenRegex.test(token),
+    (token) =>
+      token === "" || expoTokenRegex.test(token) || fcmTokenRegex.test(token),
     "Invalid push token format",
   )
   .optional();
@@ -30,6 +31,7 @@ const CreateUserValidationSchema = z
           message: "Device type must be ios, android, or web",
         }),
       })
+      .or(z.literal(""))
       .optional(),
     deviceName: z.string().max(100).optional(),
     timezone: z.string().optional(),
@@ -48,6 +50,7 @@ const UserLoginValidationSchema = z.object({
     .enum(["ios", "android", "web"], {
       errorMap: () => ({ message: "Device type must be ios, android, or web" }),
     })
+    .or(z.literal(""))
     .optional(),
   deviceName: z.string().max(100).optional(),
 });

@@ -1,5 +1,6 @@
 import httpStatus from "http-status";
 import ApiError from "../../../errors/ApiErrors";
+import { cleanObject } from "../../../helpars/cleanObject";
 import { User, DeviceType } from "../../models";
 import { generateDeviceUUID } from "../../../utils/generateDeviceUUID";
 
@@ -19,9 +20,17 @@ const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
     deviceType,
     deviceName,
   } = payload;
-  const fcmToken = rawFcmToken.trim();
+
+  const fcmToken = rawFcmToken?.trim();
   const normalizedDeviceName = deviceName?.trim() || null;
   const now = new Date();
+
+  if (!fcmToken || !rawDeviceId || !deviceType) {
+    throw new ApiError(
+      httpStatus.BAD_REQUEST,
+      "fcmToken, deviceId, and deviceType are required",
+    );
+  }
 
   const deviceId = generateDeviceUUID(rawDeviceId);
 
@@ -66,12 +75,7 @@ const registerToken = async (userId: string, payload: RegisterTokenPayload) => {
                 token: fcmToken,
                 deviceId,
                 deviceType,
-                deviceName: {
-                  $ifNull: [
-                    normalizedDeviceName,
-                    "$__existingDeviceToken.deviceName",
-                  ],
-                },
+                deviceName: normalizedDeviceName,
                 lastActiveAt: now,
                 createdAt: {
                   $ifNull: ["$__existingDeviceToken.createdAt", now],

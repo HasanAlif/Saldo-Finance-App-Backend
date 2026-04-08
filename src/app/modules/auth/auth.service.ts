@@ -4,6 +4,7 @@ import httpStatus from "http-status";
 import config from "../../../config";
 import ApiError from "../../../errors/ApiErrors";
 import { jwtHelpers } from "../../../helpars/jwtHelpers";
+import { cleanObject } from "../../../helpars/cleanObject";
 import emailSender from "../../../shared/emailSender";
 import { PASSWORD_RESET_TEMPLATE } from "../../../utils/Template";
 import { AuthProvider, User, DeviceType } from "../../models";
@@ -41,12 +42,16 @@ const loginUser = async (payload: {
   }
 
   if (payload.fcmToken && payload.deviceId && payload.deviceType) {
-    await fcmTokenService.registerToken(userData._id.toString(), {
+    const fcmData = cleanObject({
       fcmToken: payload.fcmToken,
       deviceId: payload.deviceId,
       deviceType: payload.deviceType,
       deviceName: payload.deviceName,
     });
+    await fcmTokenService.registerToken(
+      userData._id.toString(),
+      fcmData as any,
+    );
   }
 
   const accessToken = jwtHelpers.generateToken(
@@ -293,13 +298,14 @@ const socialLogin = async (payload: {
       );
     }
   } else {
-    const newUser = await User.create({
+    const newUserData = cleanObject({
       fullName: name,
       email,
       googleId: providerId,
       profilePicture: profileImage,
       authProvider: provider,
     });
+    const newUser = await User.create(newUserData);
     user = await User.findById(newUser._id).lean();
   }
 
@@ -311,12 +317,13 @@ const socialLogin = async (payload: {
   }
 
   if (fcmToken && deviceId && deviceType) {
-    await fcmTokenService.registerToken(user._id.toString(), {
+    const fcmData = cleanObject({
       fcmToken,
       deviceId,
       deviceType,
       deviceName,
     });
+    await fcmTokenService.registerToken(user._id.toString(), fcmData as any);
   }
 
   const accessToken = jwtHelpers.generateToken(
